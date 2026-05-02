@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PUT SKEW NIVEL - Daily Regime Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --text: #c9d1d9;
+  --muted: #8b949e;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 16px;
+}
+.header {
+  max-width: 1200px;
+  margin: 0 auto 16px auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+h1 { font-size: 18px; margin: 0; font-weight: 600; }
+.subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.latest {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  min-width: 220px;
+}
+.latest .v { font-size: 26px; font-weight: 700; }
+.latest .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.regime {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.regime.FAVORABLE { background: rgba(26,127,55,0.20); color: #3fb950; }
+.regime.NEUTRAL   { background: rgba(154,103,0,0.20); color: #d29922; }
+.regime.ADVERSO   { background: rgba(207,34,46,0.20); color: #f85149; }
+#chart {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.note {
+  max-width: 1200px;
+  margin: 12px auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.note strong { color: var(--text); }
+.footer {
+  max-width: 1200px;
+  margin: 14px auto 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.footer a { color: #58a6ff; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+.error {
+  color: #f85149;
+  text-align: center;
+  padding: 40px;
+  font-family: monospace;
+}
+/* ----- Evidence section ----- */
+#evidence {
+  max-width: 1200px;
+  margin: 28px auto 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.ev-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px 24px;
+}
+.ev-card h2 {
+  font-size: 17px;
+  margin: 0 0 4px 0;
+  color: var(--text);
+  font-weight: 600;
+}
+.ev-card .ev-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 10px;
+}
+.ev-card p {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #b6bec9;
+  margin: 8px 0;
+}
+.ev-card p strong { color: var(--text); }
+.ev-card img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 14px auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.ev-card ul {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #b6bec9;
+  margin: 8px 0;
+  padding-left: 22px;
+}
+.ev-card ul li { margin: 4px 0; }
+.ev-callout {
+  background: #21262d;
+  border-left: 3px solid #58a6ff;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #c9d1d9;
+  margin: 12px 0;
+}
+.ev-callout.warn { border-left-color: #d29922; }
+.ev-callout.bad  { border-left-color: #f85149; }
+.ev-callout.good { border-left-color: #3fb950; }
+.ev-meta {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 6px;
+}
+.ev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin: 12px 0 4px 0;
+}
+.ev-table th, .ev-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.ev-table thead th {
+  background: #21262d;
+  color: var(--text);
+  font-weight: 600;
+  border-bottom: 1px solid #444c56;
+}
+.ev-table tbody tr:hover { background: rgba(88, 166, 255, 0.06); }
+.ev-table th:first-child, .ev-table td:first-child { text-align: left; }
+.ev-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .ev-grid-2 { grid-template-columns: 1fr; }
+  .ev-card   { padding: 16px 16px; }
+}
+.ev-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.ev-kpi-tile {
+  background: #21262d;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+.ev-kpi-tile .v { font-size: 18px; font-weight: 700; color: var(--text); }
+.ev-kpi-tile .l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>PUT SKEW NIVEL - Daily Regime Dashboard</h1>
+    <div class="subtitle">Percentil expanding del spread IV puts 25-delta vs ATM - SPX 10:30 ET, DTE 60</div>
+  </div>
+  <div class="latest">
+    <div class="label">Ultimo dato <span id="latest-date"></span></div>
+    <div><span class="v" id="latest-value">--</span><span class="regime" id="latest-regime">--</span></div>
+  </div>
+</div>
+<div id="chart" style="height: 580px;"></div>
+<div class="note">
+  <strong>PUT SKEW NIVEL</strong> = <code>skew_25d_vs50_pct_expanding</code>: percentil historico expanding
+  (sin lookahead) del spread de IV entre puts OTM 25-delta y puts ATM 50-delta a DTE 60. Mide cuan "caro"
+  esta el seguro de cola en puts respecto a su propia historia. <strong>FAVORABLE</strong> &gt;= 80
+  (puts OTM caros, alta demanda de proteccion / volatilidad), <strong>ADVERSO</strong> &le; 20 (puts
+  baratos, complacencia), <strong>NEUTRAL</strong> 20-80. <strong>OJO BWB:</strong> la convencion se
+  invierte (BWB vende puts -> prefiere puts baratos -> BWB FAV = pct &le; 20).
+</div>
+<section id="evidence">
+
+  <!-- 1. CONCEPTO -->
+  <div class="ev-card" id="ev-concept">
+    <div class="ev-tag">Seccion 1 / 8 &middot; Concepto</div>
+    <h2>Que mide PUT SKEW NIVEL</h2>
+    <p>
+      <strong>PUT SKEW NIVEL</strong> es el <strong>percentil expanding</strong> del spread de implied
+      volatility entre el put OTM 25-delta y el put ATM 50-delta, medido a DTE 60 con snapshot 10:30 ET.
+      "Expanding" significa que cada dia el percentil se calcula contra TODO el historial previo (sin
+      lookahead) — empieza poco discriminante en 2019 y converge a una distribucion estable hacia 2021+.
+    </p>
+    <ul>
+      <li><strong>Numerador</strong>: <code>iv_put_25d - iv_put_50d</code> (spread crudo, ~0.01-0.05 en escala IV).</li>
+      <li><strong>Normalizacion</strong>: percentil 0-100 contra todos los dias historicos previos al dia evaluado.</li>
+      <li><strong>Significado financiero</strong>: cuanto se paga por proteccion de cola (25d) respecto al ATM. Alto = miedo / demanda de hedge. Bajo = complacencia / oferta de hedge.</li>
+    </ul>
+    <div class="ev-callout">
+      <strong>Bandas operativas (Allantis / Batman convention):</strong> FAVORABLE &ge; 80 (puts caros,
+      condicion ideal para vender vol structurada que se beneficia de mean-reversion del skew) &middot;
+      NEUTRAL 20-80 &middot; ADVERSO &le; 20 (puts baratos, condicion adversa para vender vol).
+    </div>
+    <div class="ev-callout warn">
+      <strong>Inversion para BWB:</strong> BWB (broken wing butterfly) <em>vende</em> puts y necesita
+      puts baratos para entrar bien. Para BWB la convencion se invierte: <strong>BWB FAVORABLE = pct
+      &le; 20</strong>, <strong>BWB ADVERSO = pct &ge; 80</strong>. La grafica de arriba pinta la
+      convencion estandar (Allantis/Batman); reinterpretar mentalmente para BWB.
+    </div>
+  </div>
+
+  <!-- 2. METODOLOGIA -->
+  <div class="ev-card" id="ev-method">
+    <div class="ev-tag">Seccion 2 / 8 &middot; Metodologia</div>
+    <h2>Como se valida la relacion con Allantis MT</h2>
+    <p>
+      Estrategia primaria de validacion: <strong>Allantis MT</strong> (~145,870 trades 2019-2025).
+      Allantis es delta-neutral y se beneficia de: (a) skew alto que paga primas de hedge ricas, (b)
+      mean-reversion del skew durante la vida del trade. La relacion PUT SKEW &harr; PnL Allantis es
+      especialmente clara cuando el SPX <strong>NO se mueve</strong> (filtro &plusmn;3% en la ventana
+      del trade), porque en esos regimenes el delta/gamma no contamina la senal y queda solo el efecto
+      de captura de prima de skew.
+    </p>
+    <p>
+      Para cada horizonte d001 a d049 calculamos:
+    </p>
+    <ul>
+      <li><strong>Spearman r</strong> entre PUT SKEW NIVEL al dia de entrada y <code>PnL_d{X}_mediana</code>.</li>
+      <li><strong>Bootstrap CI95%</strong> sobre 11 checkpoints d1, d5, d10..d45, d49 (n_boot=2000, seed=42).</li>
+      <li><strong>Deciles D1-D10</strong> del score: media, mediana, PF y win rate por decil.</li>
+      <li><strong>Year stability</strong>: spearman y delta D10-D1 calculados anio por anio 2019-2025.</li>
+      <li><strong>Regime split</strong>: PnL d030 condicionado a FAVORABLE / NEUTRAL / ADVERSO.</li>
+    </ul>
+    <p>
+      Filtro principal: <strong>|SPX_chg_pct_d030| &le; 3%</strong> (trade cuya ventana SPX se mueve
+      menos de un 3%). Este filtro retiene ~38% del universo y es donde la senal de skew se ve mas
+      limpia. Tambien reportamos resultados sin filtro para comparar.
+    </p>
+    <div id="ev-kpi-overview" class="ev-kpi"></div>
+    <div class="ev-meta">Generado: <span id="ev-generated-at">--</span></div>
+  </div>
+
+  <!-- 3. SPEARMAN POR HORIZONTE -->
+  <div class="ev-card" id="ev-spearman">
+    <div class="ev-tag">Seccion 3 / 8 &middot; Predictividad</div>
+    <h2>Spearman r de PUT SKEW NIVEL vs PnL Allantis MT por horizonte</h2>
+    <p>
+      Curva de correlacion de rangos entre el PUT SKEW NIVEL al dia de entrada del trade y el
+      <code>PnL_d{X}_mediana</code> a cada horizonte. Comparamos resultados <strong>sin filtro</strong>
+      vs filtro <strong>|SPX|&le;3%</strong>. Si el filtro AUMENTA la correlacion, eso es evidencia de
+      que la senal es genuina (skew, no beta).
+    </p>
+    <img src="evidence/put_skew_spearman_curve.png" alt="Spearman r por horizonte" loading="lazy">
+    <div id="ev-tbl-spearman"></div>
+    <p>
+      Lectura: con filtro &plusmn;3%, la correlacion sube respecto a sin filtro en la mayoria de
+      horizontes — confirma que el efecto del skew se desvirtua por movimiento del SPX en el universo
+      bruto y se hace nitido cuando aislas regimenes flat.
+    </p>
+  </div>
+
+  <!-- 4. DECILES -->
+  <div class="ev-card" id="ev-deciles">
+    <div class="ev-tag">Seccion 4 / 8 &middot; Discriminacion por decil</div>
+    <h2>PnL d030 Allantis por decil de PUT SKEW NIVEL (con filtro |SPX|&le;3%)</h2>
+    <p>
+      Particionamos el universo Allantis filtrado en 10 grupos iguales (deciles) ordenados por PUT SKEW
+      NIVEL al dia de entrada. <strong>D1</strong> = puts mas baratos (SKEW bajo), <strong>D10</strong>
+      = puts mas caros (SKEW alto). Si la senal es predictiva, deberia existir progresion creciente
+      D1 &lt; D2 &lt; ... &lt; D10 en PnL medio.
+    </p>
+    <img src="evidence/put_skew_decile_bars.png" alt="PnL por decil" loading="lazy">
+    <div id="ev-tbl-deciles"></div>
+    <h2 style="margin-top:18px">Spread D10-D1 por horizonte</h2>
+    <p>Diferencia de PnL medio entre top decil (D10) y bottom decil (D1) a cada horizonte. Si el
+       spread es positivo y crece con el horizonte, el efecto del skew tiene persistencia.</p>
+    <img src="evidence/put_skew_delta_curve.png" alt="Delta D10-D1 por horizonte" loading="lazy">
+  </div>
+
+  <!-- 5. YEAR STABILITY -->
+  <div class="ev-card" id="ev-years">
+    <div class="ev-tag">Seccion 5 / 8 &middot; Estabilidad temporal</div>
+    <h2>Year stability 2019-2025 (Allantis MT, |SPX|&le;3%)</h2>
+    <p>
+      Recalculamos Spearman r y delta D10-D1 anio a anio. Verde = positivo, rojo = negativo. Una senal
+      robusta debe mantener signo positivo en mayoria de anios. Per la documentacion de research, esta
+      relacion fue LOYO 5/7 (positivos: 2019, 2020, 2022, 2024, 2025; negativos: 2021, 2023).
+    </p>
+    <img src="evidence/put_skew_year_stability.png" alt="Year stability" loading="lazy">
+    <div id="ev-tbl-years"></div>
+  </div>
+
+  <!-- 6. REGIME SPLIT -->
+  <div class="ev-card" id="ev-regimes">
+    <div class="ev-tag">Seccion 6 / 8 &middot; Regimen condicional</div>
+    <h2>PnL Allantis condicionado al regimen FAVORABLE / NEUTRAL / ADVERSO</h2>
+    <p>
+      Misma logica que las bandas de la grafica del header. Aqui medimos el PnL medio (con CI95
+      bootstrap) de los trades historicos cuando el score estaba en cada zona, en dos horizontes:
+      d030 (focal del MD) y d050 (mid-life del trade).
+    </p>
+    <img src="evidence/put_skew_regime_pnl.png" alt="PnL por regimen" loading="lazy">
+    <div id="ev-tbl-regimes"></div>
+    <div class="ev-callout good" style="margin-top:14px">
+      Hallazgo del MD original (filtro &plusmn;3%, d030): zona <strong>FAVORABLE</strong> alcanza
+      <strong>PF 43.58, WR 96%, mean +16.76 pts</strong>; zona ADVERSA breakeven (mean +0.42 pts,
+      PF 1.08). Diferencial extraordinario que justifica el uso del score como gate de entrada.
+    </div>
+  </div>
+
+  <!-- 7. WINDOW FORWARD -->
+  <div class="ev-card" id="ev-window">
+    <div class="ev-tag">Seccion 7 / 8 &middot; Conditioning durante el trade</div>
+    <h2>Cambio de PnL forward cuando entra ventana de PUT SKEW alto vs bajo</h2>
+    <p>
+      Pregunta operativa: <strong>"tengo un trade YA ABIERTO; si entra una ventana donde PUT SKEW
+      NIVEL sube a P80+ o baja a P20- en t = 0/10/20/30/40 dias despues de la entrada, como cambia mi
+      PnL los proximos 20-50 dias respecto a HOY?"</strong>
+    </p>
+    <p>
+      Verde = HIGH (P80+ en t), rojo = LOW (P20- en t). Las tres filas comparan resultados
+      <strong>sin filtro</strong>, con <strong>|SPX|&le;3%</strong> en la ventana, y con
+      <strong>|SPX|&le;2%</strong>. Filtros estrictos = control de beta de mercado.
+    </p>
+    <img src="evidence/put_skew_window_forward.png" alt="Window forward" loading="lazy">
+    <div id="ev-tbl-window"></div>
+    <div class="ev-callout good" style="margin-top:14px">
+      Spread HIGH - LOW positivo en TODAS las celdas y los tres filtros. Util como senal de hold/close
+      mid-trade: si PUT SKEW cae a P20- mientras tienes una posicion abierta, la distribucion de PnL
+      forward se desplaza claramente a la izquierda.
+    </div>
+  </div>
+
+  <!-- 8. CROSS-STRATEGY -->
+  <div class="ev-card" id="ev-cross">
+    <div class="ev-tag">Seccion 8 / 8 &middot; Cross-strategy</div>
+    <h2>PUT SKEW NIVEL en distintas estrategias - convencion e inversion</h2>
+    <p>
+      PUT SKEW NIVEL es una senal estructural del mercado: caracteriza el "precio del miedo en puts".
+      Distintas estrategias lo usan con distintas convenciones segun si <strong>compran o venden</strong>
+      vol de puts:
+    </p>
+    <ul>
+      <li><strong>Allantis (delta-neutral, vende vol):</strong> FAV = pct &ge; 80 (cobra primas ricas).</li>
+      <li><strong>Batman (long fly + skew tilt, vende vol):</strong> FAV = pct &ge; 80 (similar a Allantis).</li>
+      <li><strong>BWB (vende puts OTM):</strong> <strong>FAV = pct &le; 20</strong> (necesita puts baratos para construir el sell side a bajo coste). <strong>Senal INVERTIDA</strong>.</li>
+    </ul>
+    <p>
+      La tabla siguiente muestra el PF en zona FAV (pct &ge; 80) por dia de evaluacion (d001-d010) para
+      las 3 estrategias usando la convencion estandar. Para BWB el numero "PF en pct &ge; 80" es bajo
+      precisamente PORQUE para BWB es zona adversa.
+    </p>
+    <div id="ev-tbl-cross"></div>
+    <div class="ev-callout warn" style="margin-top:14px">
+      <strong>Implicacion practica:</strong> antes de operar con este regimen, verifica que tipo de
+      estrategia estas planeando. Allantis/Batman/Single-leg siguen la convencion de la grafica;
+      BWB la invierte.
+    </div>
+  </div>
+
+</section>
+
+<div class="footer">
+  Last update: <span id="updated-at">--</span> &middot;
+  <a href="https://github.com/manumartinb/PUT_SKEW_NIVEL" target="_blank" rel="noopener">repo</a>
+</div>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+async function load() {
+  let d;
+  try {
+    const r = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    d = await r.json();
+  } catch (e) {
+    document.getElementById('chart').innerHTML = '<div class="error">Error cargando data.json: ' + e.message + '</div>';
+    return;
+  }
+
+  document.getElementById('latest-date').textContent = '(' + d.latest.date + ')';
+  document.getElementById('latest-value').textContent = d.latest.pct.toFixed(1);
+  const regEl = document.getElementById('latest-regime');
+  regEl.textContent = d.latest.regime;
+  regEl.className = 'regime ' + d.latest.regime;
+  document.getElementById('updated-at').textContent = d.generated_at;
+
+  const traces = [
+    {
+      x: d.dates, y: d.pct, type: 'scatter', mode: 'lines',
+      name: 'PUT SKEW pct_expanding',
+      line: { color: '#58a6ff', width: 2.2 },
+      hovertemplate: '%{x|%Y-%m-%d}<br><b>PUT SKEW pct</b>: %{y:.1f}<extra></extra>',
+    },
+  ];
+
+  const layout = {
+    paper_bgcolor: '#161b22',
+    plot_bgcolor: '#161b22',
+    font: { color: '#c9d1d9', family: '-apple-system, sans-serif', size: 12 },
+    margin: { t: 40, r: 20, b: 50, l: 55 },
+    xaxis: {
+      gridcolor: '#21262d',
+      linecolor: '#30363d',
+      type: 'date',
+      rangeselector: {
+        buttons: [
+          { count: 30, label: '30D', step: 'day',   stepmode: 'backward' },
+          { count: 90, label: '90D', step: 'day',   stepmode: 'backward' },
+          { count: 1,  label: '1A',  step: 'year',  stepmode: 'backward' },
+          { count: 3,  label: '3A',  step: 'year',  stepmode: 'backward' },
+          { step: 'all', label: 'All' },
+        ],
+        bgcolor: '#21262d',
+        activecolor: '#1f6feb',
+        font: { color: '#c9d1d9', size: 11 },
+        bordercolor: '#30363d',
+        borderwidth: 1,
+      },
+      rangeslider: { visible: false },
+    },
+    yaxis: {
+      range: [0, 100],
+      gridcolor: '#21262d',
+      linecolor: '#30363d',
+      title: { text: 'Percentil expanding', font: { size: 12 } },
+      tickvals: [0, 20, 40, 60, 80, 100],
+    },
+    shapes: [
+      { type: 'rect', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 80, y1: 100, fillcolor: '#1a7f37', opacity: 0.10, line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 20, y1: 80,  fillcolor: '#9a6700', opacity: 0.06, line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 0,  y1: 20,  fillcolor: '#cf222e', opacity: 0.10, line: { width: 0 }, layer: 'below' },
+      { type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 80, y1: 80, line: { color: '#1a7f37', width: 1, dash: 'dash' }, layer: 'below' },
+      { type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 20, y1: 20, line: { color: '#cf222e', width: 1, dash: 'dash' }, layer: 'below' },
+    ],
+    annotations: [
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 90, text: 'FAVORABLE (Allantis/Batman)', font: { color: '#3fb950', size: 10 }, showarrow: false, opacity: 0.7 },
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 50, text: 'NEUTRAL',   font: { color: '#d29922', size: 10 }, showarrow: false, opacity: 0.7 },
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 10, text: 'ADVERSO (Allantis/Batman) | FAVORABLE (BWB)',   font: { color: '#f85149', size: 10 }, showarrow: false, opacity: 0.7 },
+    ],
+    legend: { orientation: 'h', y: -0.18, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' },
+    hovermode: 'x unified',
+  };
+
+  if (d.dates.length > 0) {
+    const last = d.dates[d.dates.length - 1];
+    const lastDt = new Date(last);
+    const start = new Date(lastDt);
+    start.setDate(start.getDate() - 90);
+    layout.xaxis.range = [start.toISOString().slice(0, 10), last];
+  }
+
+  Plotly.newPlot('chart', traces, layout, {
+    responsive: true,
+    displaylogo: false,
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+  });
+}
+load();
+
+async function loadEvidence() {
+  let ev;
+  try {
+    const r = await fetch('evidence/evidence.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    ev = await r.json();
+  } catch (e) {
+    console.warn('evidence load failed:', e);
+    return;
+  }
+
+  const ga = document.getElementById('ev-generated-at');
+  if (ga) ga.textContent = ev.generated_at || '--';
+
+  const kpi = document.getElementById('ev-kpi-overview');
+  if (kpi && ev.put_skew && ev.put_skew.headline) {
+    const h = ev.put_skew.headline;
+    const tiles = [
+      { l: 'N trades',      v: ev.input ? ev.input.n_trades.toLocaleString() : '--' },
+      { l: 'N dias',        v: ev.input ? ev.input.n_days.toLocaleString() : '--' },
+      { l: 'Anios',         v: ev.input ? (ev.input.date_min.slice(0,4) + '-' + ev.input.date_max.slice(0,4)) : '--' },
+      { l: 'Filtro SPX',    v: ev.input ? ev.input.spx_filter : '--' },
+      { l: 'Spearman d030', v: (typeof h.spearman === 'number') ? h.spearman.toFixed(3) : '--' },
+      { l: 'Delta D10-D1',  v: (typeof h.delta_d10_d1 === 'number') ? (h.delta_d10_d1.toFixed(1) + ' pts') : '--' },
+      { l: 'PF D10/D1',     v: (typeof h.pf_ratio_d10_d1 === 'number') ? h.pf_ratio_d10_d1.toFixed(2) : '--' },
+    ];
+    kpi.innerHTML = tiles.map(t =>
+      '<div class="ev-kpi-tile"><div class="v">' + t.v + '</div><div class="l">' + t.l + '</div></div>'
+    ).join('');
+  }
+
+  const tableMap = {
+    'ev-tbl-spearman': 'spearman',
+    'ev-tbl-deciles':  'deciles',
+    'ev-tbl-years':    'years',
+    'ev-tbl-regimes':  'regimes',
+    'ev-tbl-window':   'window_forward',
+    'ev-tbl-cross':    'cross_strategy',
+  };
+  if (ev.tables_html) {
+    for (const [elId, key] of Object.entries(tableMap)) {
+      const el = document.getElementById(elId);
+      if (el && typeof ev.tables_html[key] === 'string') {
+        el.innerHTML = ev.tables_html[key];
+      }
+    }
+  }
+}
+loadEvidence();
+</script>
+</body>
+</html>
