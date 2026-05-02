@@ -81,7 +81,7 @@ TZ = ZoneInfo("Europe/Madrid")
 
 # Analysis params
 SCORE_COL = "PUT_SKEW_PCT"   # name we give to the joined column locally
-DATE_COL = "trade_date"
+DATE_COL = "dia"             # Allantis CSV uses 'dia' as date column (not trade_date)
 WINDOWS = list(range(1, 50))
 CHECKPOINTS = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 49]
 BOOTSTRAP_N = 2000
@@ -221,7 +221,14 @@ def load_dataset() -> Dataset:
     spx_filter_col = f"SPX_chg_pct_d{SPX_FILTER_HORIZON:03d}"
     needed = {DATE_COL, spx_filter_col} | set(pnl_cols)
     print(f"[INFO] reading Allantis {ALLANTIS_CSV.name} (subset cols)")
-    a = pd.read_csv(ALLANTIS_CSV, usecols=lambda c: c in needed, low_memory=False)
+    # encoding='utf-8-sig' strips the BOM that prefixes 'dia' in this CSV
+    a = pd.read_csv(ALLANTIS_CSV, usecols=lambda c: c.replace("﻿", "") in needed,
+                    low_memory=False, encoding="utf-8-sig")
+    # Some readers preserve the BOM in the column name; rename if present
+    a.columns = [str(c).replace("﻿", "") for c in a.columns]
+    if DATE_COL not in a.columns:
+        raise RuntimeError(f"Allantis CSV missing date column '{DATE_COL}'. "
+                           f"Available: {list(a.columns)[:10]}")
     a[DATE_COL] = pd.to_datetime(a[DATE_COL], errors="coerce")
     a[DATE_COL] = a[DATE_COL].dt.normalize()
     for c in pnl_cols + [spx_filter_col]:
@@ -231,15 +238,19 @@ def load_dataset() -> Dataset:
 
     print(f"[INFO] reading SKEW_PUT_ENRICHED.csv and filtering DTE=60/10:30/PUT")
     s = _load_skew_daily()
+    # Skew CSV uses 'trade_date'; rename to align with Allantis 'dia' for the merge
+    s = s.rename(columns={"trade_date": DATE_COL})
 
-    print(f"[INFO] joining Allantis ({len(a):,}) x PUT SKEW daily ({len(s):,}) on trade_date")
+    print(f"[INFO] joining Allantis ({len(a):,}) x PUT SKEW daily ({len(s):,}) on '{DATE_COL}'")
     df = a.merge(s, on=DATE_COL, how="inner")
     df = df.dropna(subset=[SCORE_COL]).copy()
     print(f"[INFO] after join + dropna(SCORE): {len(df):,} trades")
 
-    # Apply SPX filter (cleanest signal per documented analysis)
+    # Apply SPX filter (cleanest signal per documented analysis).
+    # NOTE: SPX_chg_pct_d030 is expressed in PERCENTAGE POINTS (e.g., -3.5 for -3.5%),
+    # not fractions. So compare directly with SPX_FILTER_PCT (3.0 = 3%).
     if spx_filter_col in df.columns:
-        mask = df[spx_filter_col].abs() <= (SPX_FILTER_PCT / 100.0)
+        mask = df[spx_filter_col].abs() <= SPX_FILTER_PCT
         df_f = df[mask].copy()
         spx_label = f"|SPX_chg_pct_d{SPX_FILTER_HORIZON:03d}|<={SPX_FILTER_PCT:.0f}%"
         print(f"[INFO] after SPX filter ({spx_label}): {len(df_f):,} trades "
