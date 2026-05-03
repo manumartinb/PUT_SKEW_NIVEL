@@ -666,7 +666,7 @@ async function loadEvidence() {
       { l: 'N dias',        v: ev.input ? ev.input.n_days.toLocaleString() : '--' },
       { l: 'Anios',         v: ev.input ? (ev.input.date_min.slice(0,4) + '-' + ev.input.date_max.slice(0,4)) : '--' },
       { l: 'Filtro SPX',    v: ev.input ? ev.input.spx_filter : '--' },
-      { l: 'Spearman d030', v: (typeof h.spearman === 'number') ? h.spearman.toFixed(3) : '--' },
+      { l: 'Spearman d020', v: (typeof h.spearman === 'number') ? h.spearman.toFixed(3) : '--' },
       { l: 'Delta D10-D1',  v: (typeof h.delta_d10_d1 === 'number') ? (h.delta_d10_d1.toFixed(1) + ' pts') : '--' },
       { l: 'PF D10/D1',     v: (typeof h.pf_ratio_d10_d1 === 'number') ? h.pf_ratio_d10_d1.toFixed(2) : '--' },
     ];
