@@ -347,6 +347,36 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
     <div><span class="v" id="latest-value">--</span><span class="regime" id="latest-regime">--</span></div>
   </div>
 </div>
+<div class="oos-panel">
+  <div class="oos-tag">OOS 2026 &middot; Validacion live</div>
+  <h2>Backtest Out-of-Sample 2026 &mdash; 2 ene a 13 mar 2026 &middot; 422 trades &middot; 46 dias</h2>
+  <div class="oos-grid">
+    <div class="oos-cell">
+      <div class="oos-label">Universo</div>
+      <div class="oos-stats">N=<b>422</b> &nbsp; mean=<b>&minus;5.8</b><br>WR=<b>23.2%</b> &nbsp; PF=<b>0.59</b></div>
+    </div>
+    <div class="oos-cell fav">
+      <div class="oos-label">PUT_SKEW FAV (&ge;80)</div>
+      <div class="oos-stats">N=<b>85</b> &nbsp; mean=<b>+37.1</b><br>WR=<b>96.5%</b> &nbsp; PF=<b>38.5</b></div>
+    </div>
+    <div class="oos-cell">
+      <div class="oos-label">PUT_SKEW NEU (20-80)</div>
+      <div class="oos-stats">N=<b>337</b> &nbsp; mean=<b>&minus;16.6</b><br>WR=<b>4.7%</b> &nbsp; PF=<b>0.05</b></div>
+    </div>
+  </div>
+  <p class="oos-comment">
+    <strong>8 dias FAV en cluster del 3-13 marzo.</strong> 82 de 85 trades FAV ganaron (96.5%). El universo perdio en media; el cohort FAV entrego <strong>+37 pts mean PnL</strong> &mdash; un swing de +43 puntos sobre el universo. La regla operativa funciono live: entrar cuando PUT_SKEW &ge;80, evitar el resto. Metrica: <code>PnL_fwd_pts_25_mediana</code> (25% del DTE forward, ultimo disponible &mdash; los trades de marzo 2026 aun no maduraron).
+  </p>
+</div>
+<div id="chart" style="height: 580px;"></div>
+<div class="note">
+  <strong>PUT SKEW NIVEL</strong> = <code>skew_25d_vs50_pct_expanding</code>: percentil historico expanding
+  (sin lookahead) del spread de IV entre puts OTM 25-delta y puts ATM 50-delta a DTE 60. Mide cuan "caro"
+  esta el seguro de cola en puts respecto a su propia historia. <strong>FAVORABLE</strong> &gt;= 80
+  (puts OTM caros, alta demanda de proteccion / volatilidad), <strong>ADVERSO</strong> &le; 20 (puts
+  baratos, complacencia), <strong>NEUTRAL</strong> 20-80. <strong>OJO BWB:</strong> la convencion se
+  invierte (BWB vende puts -> prefiere puts baratos -> BWB FAV = pct &le; 20).
+</div>
 <div class="rules" id="rules">
   <h2>Como usar PUT_SKEW NIVEL (operativa)</h2>
   <div class="rules-baseline">
@@ -415,36 +445,6 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
     <strong>OJO BWB</strong>: la convencion se invierte. Para BWB (vende puts) <strong>FAV = pct &le; 20</strong>
     y <strong>ADV = pct &ge; 80</strong>. Las metricas de arriba son para la convencion Batman LT (no aplican a BWB).
   </p>
-</div>
-<div class="oos-panel">
-  <div class="oos-tag">OOS 2026 &middot; Validacion live</div>
-  <h2>Backtest Out-of-Sample 2026 &mdash; 2 ene a 13 mar 2026 &middot; 422 trades &middot; 46 dias</h2>
-  <div class="oos-grid">
-    <div class="oos-cell">
-      <div class="oos-label">Universo</div>
-      <div class="oos-stats">N=<b>422</b> &nbsp; mean=<b>&minus;5.8</b><br>WR=<b>23.2%</b> &nbsp; PF=<b>0.59</b></div>
-    </div>
-    <div class="oos-cell fav">
-      <div class="oos-label">PUT_SKEW FAV (&ge;80)</div>
-      <div class="oos-stats">N=<b>85</b> &nbsp; mean=<b>+37.1</b><br>WR=<b>96.5%</b> &nbsp; PF=<b>38.5</b></div>
-    </div>
-    <div class="oos-cell">
-      <div class="oos-label">PUT_SKEW NEU (20-80)</div>
-      <div class="oos-stats">N=<b>337</b> &nbsp; mean=<b>&minus;16.6</b><br>WR=<b>4.7%</b> &nbsp; PF=<b>0.05</b></div>
-    </div>
-  </div>
-  <p class="oos-comment">
-    <strong>8 dias FAV en cluster del 3-13 marzo.</strong> 82 de 85 trades FAV ganaron (96.5%). El universo perdio en media; el cohort FAV entrego <strong>+37 pts mean PnL</strong> &mdash; un swing de +43 puntos sobre el universo. La regla operativa funciono live: entrar cuando PUT_SKEW &ge;80, evitar el resto. Metrica: <code>PnL_fwd_pts_25_mediana</code> (25% del DTE forward, ultimo disponible &mdash; los trades de marzo 2026 aun no maduraron).
-  </p>
-</div>
-<div id="chart" style="height: 580px;"></div>
-<div class="note">
-  <strong>PUT SKEW NIVEL</strong> = <code>skew_25d_vs50_pct_expanding</code>: percentil historico expanding
-  (sin lookahead) del spread de IV entre puts OTM 25-delta y puts ATM 50-delta a DTE 60. Mide cuan "caro"
-  esta el seguro de cola en puts respecto a su propia historia. <strong>FAVORABLE</strong> &gt;= 80
-  (puts OTM caros, alta demanda de proteccion / volatilidad), <strong>ADVERSO</strong> &le; 20 (puts
-  baratos, complacencia), <strong>NEUTRAL</strong> 20-80. <strong>OJO BWB:</strong> la convencion se
-  invierte (BWB vende puts -> prefiere puts baratos -> BWB FAV = pct &le; 20).
 </div>
 <section id="evidence">
 
