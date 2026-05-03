@@ -210,8 +210,15 @@ def load_dataset() -> Dataset:
     if not SKEW_ENRICHED_CSV.exists():
         raise FileNotFoundError(f"SKEW_PUT_ENRICHED not found: {SKEW_ENRICHED_CSV}")
 
-    pnl_cols = [f"PnL_d{d:03d}_mediana" for d in WINDOWS]
-    spx_cols = [f"SPX_chg_pct_d{d:03d}" for d in WINDOWS]
+    # Load ALL columns needed: horizon analysis (d001-d049), regime d050,
+    # and window-forward up to t_max+x_max = 40+50 = d090
+    horizon_pnl_cols = [f"PnL_d{d:03d}_mediana" for d in WINDOWS]
+    horizon_spx_cols = [f"SPX_chg_pct_d{d:03d}" for d in WINDOWS]
+    extra_days = list(range(50, max(WF_OBS_DAYS) + max(WF_FORWARDS) + 1))  # d050 .. d090
+    extra_pnl_cols = [f"PnL_d{d:03d}_mediana" for d in extra_days]
+    extra_spx_cols = [f"SPX_chg_pct_d{d:03d}" for d in extra_days]
+    pnl_cols = horizon_pnl_cols + extra_pnl_cols
+    spx_cols = horizon_spx_cols + extra_spx_cols
     needed = {DATE_COL} | set(pnl_cols) | set(spx_cols)
     print(f"[INFO] reading Batman LT {BATMAN_LT_CSV.name} (subset cols)")
     bm = pd.read_csv(BATMAN_LT_CSV, usecols=lambda c: c in needed, low_memory=False)
