@@ -24,7 +24,7 @@ Manual regen with:
     python generate_evidence.py --push     # local + git push to GitHub Pages
 
 Auth: env var GH_PUT_SKEW_TOKEN (User scope), Contents:write fine-grained PAT
-scoped to manumartinb/PUT_SKEW_NIVEL.
+scoped to manumartinb/PUT_SKEW_NIVEL_BATMAN_LT.
 """
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ WINDOW_FORWARD_CSV = PUT_SKEW_ANALYSIS_DIR / "PUT_SKEW_NIVEL_window_forward_resu
 PF_GE80_CSV = PUT_SKEW_ANALYSIS_DIR / "PF_DXXX_P20_P80" / "put_pct_ge80_pf_d010_step10.csv"
 PF_LT20_CSV = PUT_SKEW_ANALYSIS_DIR / "PF_DXXX_P20_P80" / "put_pct_lt20_pf_d010_step10.csv"
 
-GH_REPO = "manumartinb/PUT_SKEW_NIVEL"
+GH_REPO = "manumartinb/PUT_SKEW_NIVEL_BATMAN_LT"
 GH_USER_NAME = "manumartinb"
 GH_USER_EMAIL = "manuelmartinbarranco@gmail.com"
 TOKEN_ENV = "GH_PUT_SKEW_TOKEN"
@@ -1125,7 +1125,7 @@ def git_push() -> int:
         print(f"[X] push failed: {sanitized.strip()}")
         return 1
 
-    print(f"[OK] pushed to https://manumartinb.github.io/PUT_SKEW_NIVEL/")
+    print(f"[OK] pushed to https://manumartinb.github.io/PUT_SKEW_NIVEL_BATMAN_LT/")
     return 0
 
 

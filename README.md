@@ -3,7 +3,7 @@
 Pagina web con grafico interactivo + evidencia estadistica del **PUT SKEW NIVEL**
 (percentil expanding del spread IV puts 25-delta vs ATM, DTE 60, snapshot 10:30 ET).
 
-URL publica: https://manumartinb.github.io/PUT_SKEW_NIVEL/
+URL publica: https://manumartinb.github.io/PUT_SKEW_NIVEL_BATMAN_LT/
 
 ## Que muestra
 

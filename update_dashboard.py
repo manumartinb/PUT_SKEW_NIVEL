@@ -7,7 +7,7 @@ Genera data.json del dashboard PUT_SKEW_NIVEL y hace push a GitHub Pages.
 
 Lee SKEW_PUT_ENRICHED.csv (output de V8.0 SKEW PIPELINE Step 4) filtrado a
 DTE=60 / snapshot=10:30 / side=PUT, y publica en
-https://manumartinb.github.io/PUT_SKEW_NIVEL/
+https://manumartinb.github.io/PUT_SKEW_NIVEL_BATMAN_LT/
 
 Metric publicada: skew_25d_vs50_pct_expanding (percentil expanding del spread
 IV puts 25d vs ATM, sin lookahead).
@@ -37,7 +37,7 @@ SOURCE_CSV = Path(
 DASHBOARD_DIR = Path(r"C:\Users\Administrator\Desktop\PUT_SKEW_NIVEL_DASHBOARD")
 DATA_JSON = DASHBOARD_DIR / "data.json"
 
-GH_REPO = "manumartinb/PUT_SKEW_NIVEL"
+GH_REPO = "manumartinb/PUT_SKEW_NIVEL_BATMAN_LT"
 GH_USER_NAME = "manumartinb"
 GH_USER_EMAIL = "manuelmartinbarranco@gmail.com"
 TOKEN_ENV = "GH_PUT_SKEW_TOKEN"
@@ -193,7 +193,7 @@ def push_to_github() -> int:
         print(f"[X] push failed: {sanitized.strip()}")
         return 1
 
-    print(f"[OK] pushed to https://manumartinb.github.io/PUT_SKEW_NIVEL/")
+    print(f"[OK] pushed to https://manumartinb.github.io/PUT_SKEW_NIVEL_BATMAN_LT/")
     return 0
 
 
