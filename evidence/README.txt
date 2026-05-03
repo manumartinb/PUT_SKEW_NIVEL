@@ -1,10 +1,9 @@
-Evidence regenerated: 2026-05-03 01:34 CEST
-Allantis input: [MAIN RANKEO MT]_combined_ALLANTIS_ALLDAYS.csv
+Evidence regenerated: 2026-05-03 13:09 CEST
+Batman LT input: [MAIN RANKEO LT]_combined_BATMAN_mediana_w_stats_w_vix_OWN_ALLDAYS.csv
 Skew input: SKEW_PUT_ENRICHED.csv
-N trades (filtered): 55,598  N days: 480
-Date range: 2019-02-12 to 2025-12-23
-SPX filter: |SPX_chg_pct_d030|<=3%
+N trades: 46,118  N days: 1,613
+Date range: 2019-01-03 to 2025-08-14
 Score: skew_25d_vs50_pct_expanding
 Bootstrap: n=2000, seed=42
-Reference horizon: d030
-Headline Spearman r: 0.300
+Reference horizon: d020
+Headline Spearman r: 0.268

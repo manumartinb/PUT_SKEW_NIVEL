@@ -363,7 +363,7 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
 
   <p style="font-size:12px;color:#8b949e;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
     <strong>OJO BWB</strong>: la convencion se invierte. Para BWB (vende puts) <strong>FAV = pct &le; 20</strong>
-    y <strong>ADV = pct &ge; 80</strong>. Las metricas de arriba son para Allantis/Batman convention.
+    y <strong>ADV = pct &ge; 80</strong>. Las metricas de arriba son para la convencion Batman LT (no aplican a BWB).
   </p>
 </div>
 <div id="chart" style="height: 580px;"></div>
@@ -379,7 +379,7 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
 
   <!-- 1. CONCEPTO -->
   <div class="ev-card" id="ev-concept">
-    <div class="ev-tag">Seccion 1 / 8 &middot; Concepto</div>
+    <div class="ev-tag">Seccion 1 / 7 &middot; Concepto</div>
     <h2>Que mide PUT SKEW NIVEL</h2>
     <p>
       <strong>PUT SKEW NIVEL</strong> es el <strong>percentil expanding</strong> del spread de implied
@@ -393,7 +393,7 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
       <li><strong>Significado financiero</strong>: cuanto se paga por proteccion de cola (25d) respecto al ATM. Alto = miedo / demanda de hedge. Bajo = complacencia / oferta de hedge.</li>
     </ul>
     <div class="ev-callout">
-      <strong>Bandas operativas (Allantis / Batman convention):</strong> FAVORABLE &ge; 80 (puts caros,
+      <strong>Bandas operativas (convencion Batman LT):</strong> FAVORABLE &ge; 80 (puts caros,
       condicion ideal para vender vol structurada que se beneficia de mean-reversion del skew) &middot;
       NEUTRAL 20-80 &middot; ADVERSO &le; 20 (puts baratos, condicion adversa para vender vol).
     </div>
@@ -401,21 +401,19 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
       <strong>Inversion para BWB:</strong> BWB (broken wing butterfly) <em>vende</em> puts y necesita
       puts baratos para entrar bien. Para BWB la convencion se invierte: <strong>BWB FAVORABLE = pct
       &le; 20</strong>, <strong>BWB ADVERSO = pct &ge; 80</strong>. La grafica de arriba pinta la
-      convencion estandar (Allantis/Batman); reinterpretar mentalmente para BWB.
+      convencion estandar Batman LT; reinterpretar mentalmente para BWB.
     </div>
   </div>
 
   <!-- 2. METODOLOGIA -->
   <div class="ev-card" id="ev-method">
-    <div class="ev-tag">Seccion 2 / 8 &middot; Metodologia</div>
-    <h2>Como se valida la relacion con Allantis MT</h2>
+    <div class="ev-tag">Seccion 2 / 7 &middot; Metodologia</div>
+    <h2>Como se valida la relacion con Batman LT</h2>
     <p>
-      Estrategia primaria de validacion: <strong>Allantis MT</strong> (~145,870 trades 2019-2025).
-      Allantis es delta-neutral y se beneficia de: (a) skew alto que paga primas de hedge ricas, (b)
-      mean-reversion del skew durante la vida del trade. La relacion PUT SKEW &harr; PnL Allantis es
-      especialmente clara cuando el SPX <strong>NO se mueve</strong> (filtro &plusmn;3% en la ventana
-      del trade), porque en esos regimenes el delta/gamma no contamina la senal y queda solo el efecto
-      de captura de prima de skew.
+      Estrategia de validacion: <strong>Batman LT</strong> (46,118 trades 2019-2025, sin filtro SPX).
+      Es la misma estrategia y el mismo dataset que valida la pagina hermana de TENSION
+      (LIBERATION_SCORE_BATMAN_LT). Mantener un solo universo de validacion para ambas paginas
+      simplifica la comparacion entre scores.
     </p>
     <p>
       Para cada horizonte d001 a d049 calculamos:
@@ -425,12 +423,12 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
       <li><strong>Bootstrap CI95%</strong> sobre 11 checkpoints d1, d5, d10..d45, d49 (n_boot=2000, seed=42).</li>
       <li><strong>Deciles D1-D10</strong> del score: media, mediana, PF y win rate por decil.</li>
       <li><strong>Year stability</strong>: spearman y delta D10-D1 calculados anio por anio 2019-2025.</li>
-      <li><strong>Regime split</strong>: PnL d030 condicionado a FAVORABLE / NEUTRAL / ADVERSO.</li>
+      <li><strong>Regime split</strong>: PnL d020 y d050 condicionado a FAVORABLE / NEUTRAL / ADVERSO.</li>
     </ul>
     <p>
-      Filtro principal: <strong>|SPX_chg_pct_d030| &le; 3%</strong> (trade cuya ventana SPX se mueve
-      menos de un 3%). Este filtro retiene ~38% del universo y es donde la senal de skew se ve mas
-      limpia. Tambien reportamos resultados sin filtro para comparar.
+      <strong>Sin filtro SPX</strong> aplicado: las metricas son sobre el universo Batman LT entero
+      para mantener consistencia con el bloque de reglas operativas del top de la pagina y con el
+      dashboard de TENSION.
     </p>
     <div id="ev-kpi-overview" class="ev-kpi"></div>
     <div class="ev-meta">Generado: <span id="ev-generated-at">--</span></div>
@@ -438,29 +436,28 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
 
   <!-- 3. SPEARMAN POR HORIZONTE -->
   <div class="ev-card" id="ev-spearman">
-    <div class="ev-tag">Seccion 3 / 8 &middot; Predictividad</div>
-    <h2>Spearman r de PUT SKEW NIVEL vs PnL Allantis MT por horizonte</h2>
+    <div class="ev-tag">Seccion 3 / 7 &middot; Predictividad</div>
+    <h2>Spearman r de PUT SKEW NIVEL vs PnL Batman LT por horizonte</h2>
     <p>
       Curva de correlacion de rangos entre el PUT SKEW NIVEL al dia de entrada del trade y el
-      <code>PnL_d{X}_mediana</code> a cada horizonte. Comparamos resultados <strong>sin filtro</strong>
-      vs filtro <strong>|SPX|&le;3%</strong>. Si el filtro AUMENTA la correlacion, eso es evidencia de
-      que la senal es genuina (skew, no beta).
+      <code>PnL_d{X}_mediana</code> a cada horizonte. Marcadores con barra: 11 checkpoints con
+      bootstrap CI95% (n_boot=2000).
     </p>
     <img src="evidence/put_skew_spearman_curve.png" alt="Spearman r por horizonte" loading="lazy">
     <div id="ev-tbl-spearman"></div>
     <p>
-      Lectura: con filtro &plusmn;3%, la correlacion sube respecto a sin filtro en la mayoria de
-      horizontes — confirma que el efecto del skew se desvirtua por movimiento del SPX en el universo
-      bruto y se hace nitido cuando aislas regimenes flat.
+      Lectura: si la curva esta consistentemente por encima de cero y el CI95% del checkpoint inferior
+      tampoco cruza cero, hay evidencia de que el score es predictor estadisticamente significativo
+      del PnL Batman LT en ese horizonte.
     </p>
   </div>
 
   <!-- 4. DECILES -->
   <div class="ev-card" id="ev-deciles">
-    <div class="ev-tag">Seccion 4 / 8 &middot; Discriminacion por decil</div>
-    <h2>PnL d030 Allantis por decil de PUT SKEW NIVEL (con filtro |SPX|&le;3%)</h2>
+    <div class="ev-tag">Seccion 4 / 7 &middot; Discriminacion por decil</div>
+    <h2>PnL d020 Batman LT por decil de PUT SKEW NIVEL</h2>
     <p>
-      Particionamos el universo Allantis filtrado en 10 grupos iguales (deciles) ordenados por PUT SKEW
+      Particionamos el universo Batman LT en 10 grupos iguales (deciles) ordenados por PUT SKEW
       NIVEL al dia de entrada. <strong>D1</strong> = puts mas baratos (SKEW bajo), <strong>D10</strong>
       = puts mas caros (SKEW alto). Si la senal es predictiva, deberia existir progresion creciente
       D1 &lt; D2 &lt; ... &lt; D10 en PnL medio.
@@ -469,18 +466,18 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
     <div id="ev-tbl-deciles"></div>
     <h2 style="margin-top:18px">Spread D10-D1 por horizonte</h2>
     <p>Diferencia de PnL medio entre top decil (D10) y bottom decil (D1) a cada horizonte. Si el
-       spread es positivo y crece con el horizonte, el efecto del skew tiene persistencia.</p>
+       spread es positivo y crece con el horizonte, el efecto del skew tiene persistencia en el PnL.</p>
     <img src="evidence/put_skew_delta_curve.png" alt="Delta D10-D1 por horizonte" loading="lazy">
   </div>
 
   <!-- 5. YEAR STABILITY -->
   <div class="ev-card" id="ev-years">
-    <div class="ev-tag">Seccion 5 / 8 &middot; Estabilidad temporal</div>
-    <h2>Year stability 2019-2025 (Allantis MT, |SPX|&le;3%)</h2>
+    <div class="ev-tag">Seccion 5 / 7 &middot; Estabilidad temporal</div>
+    <h2>Year stability 2019-2025 (Batman LT)</h2>
     <p>
       Recalculamos Spearman r y delta D10-D1 anio a anio. Verde = positivo, rojo = negativo. Una senal
-      robusta debe mantener signo positivo en mayoria de anios. Per la documentacion de research, esta
-      relacion fue LOYO 5/7 (positivos: 2019, 2020, 2022, 2024, 2025; negativos: 2021, 2023).
+      robusta debe mantener signo positivo en la mayoria de anios. Esta tabla muestra ahora la senal
+      sobre Batman LT directamente, sin filtro SPX.
     </p>
     <img src="evidence/put_skew_year_stability.png" alt="Year stability" loading="lazy">
     <div id="ev-tbl-years"></div>
@@ -488,69 +485,45 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
 
   <!-- 6. REGIME SPLIT -->
   <div class="ev-card" id="ev-regimes">
-    <div class="ev-tag">Seccion 6 / 8 &middot; Regimen condicional</div>
-    <h2>PnL Allantis condicionado al regimen FAVORABLE / NEUTRAL / ADVERSO</h2>
+    <div class="ev-tag">Seccion 6 / 7 &middot; Regimen condicional</div>
+    <h2>PnL Batman LT condicionado al regimen FAVORABLE / NEUTRAL / ADVERSO</h2>
     <p>
       Misma logica que las bandas de la grafica del header. Aqui medimos el PnL medio (con CI95
       bootstrap) de los trades historicos cuando el score estaba en cada zona, en dos horizontes:
-      d030 (focal del MD) y d050 (mid-life del trade).
+      <strong>d020</strong> (canonico Batman LT, matches LIBERATION dashboard) y <strong>d050</strong>
+      (mid-life del trade).
     </p>
     <img src="evidence/put_skew_regime_pnl.png" alt="PnL por regimen" loading="lazy">
     <div id="ev-tbl-regimes"></div>
     <div class="ev-callout good" style="margin-top:14px">
-      Hallazgo del MD original (filtro &plusmn;3%, d030): zona <strong>FAVORABLE</strong> alcanza
-      <strong>PF 43.58, WR 96%, mean +16.76 pts</strong>; zona ADVERSA breakeven (mean +0.42 pts,
-      PF 1.08). Diferencial extraordinario que justifica el uso del score como gate de entrada.
+      <strong>Estos son los numeros que el bloque de reglas operativas del top de la pagina cita
+      directamente.</strong> ADV en Batman LT pierde en promedio (mean negativo a d020 y d050) — es
+      la "trampa real" que la regla 2 advierte.
     </div>
   </div>
 
   <!-- 7. WINDOW FORWARD -->
   <div class="ev-card" id="ev-window">
-    <div class="ev-tag">Seccion 7 / 8 &middot; Conditioning durante el trade</div>
+    <div class="ev-tag">Seccion 7 / 7 &middot; Conditioning durante el trade</div>
     <h2>Cambio de PnL forward cuando entra ventana de PUT SKEW alto vs bajo</h2>
     <p>
       Pregunta operativa: <strong>"tengo un trade YA ABIERTO; si entra una ventana donde PUT SKEW
       NIVEL sube a P80+ o baja a P20- en t = 0/10/20/30/40 dias despues de la entrada, como cambia mi
-      PnL los proximos 20-50 dias respecto a HOY?"</strong>
+      PnL Batman LT los proximos 20-50 dias respecto a HOY?"</strong>
     </p>
     <p>
-      Verde = HIGH (P80+ en t), rojo = LOW (P20- en t). Las tres filas comparan resultados
-      <strong>sin filtro</strong>, con <strong>|SPX|&le;3%</strong> en la ventana, y con
-      <strong>|SPX|&le;2%</strong>. Filtros estrictos = control de beta de mercado.
+      Computado <strong>desde cero sobre Batman LT</strong> (no es la version cross-strategy del
+      original): para cada trade Batman LT abierto, miramos el PUT SKEW al dia <code>t</code> de vida
+      del trade y comparamos delta_PnL entre <code>t</code> y <code>t+x</code>. Verde = HIGH
+      (P80+ en t), rojo = LOW (P20- en t). Las tres filas anaden filtros opcionales sobre
+      |SPX_chg en ventana| (sin filtro como caso principal, &le;3% y &le;2% como controles).
     </p>
     <img src="evidence/put_skew_window_forward.png" alt="Window forward" loading="lazy">
     <div id="ev-tbl-window"></div>
     <div class="ev-callout good" style="margin-top:14px">
-      Spread HIGH - LOW positivo en TODAS las celdas y los tres filtros. Util como senal de hold/close
-      mid-trade: si PUT SKEW cae a P20- mientras tienes una posicion abierta, la distribucion de PnL
-      forward se desplaza claramente a la izquierda.
-    </div>
-  </div>
-
-  <!-- 8. CROSS-STRATEGY -->
-  <div class="ev-card" id="ev-cross">
-    <div class="ev-tag">Seccion 8 / 8 &middot; Cross-strategy</div>
-    <h2>PUT SKEW NIVEL en distintas estrategias - convencion e inversion</h2>
-    <p>
-      PUT SKEW NIVEL es una senal estructural del mercado: caracteriza el "precio del miedo en puts".
-      Distintas estrategias lo usan con distintas convenciones segun si <strong>compran o venden</strong>
-      vol de puts:
-    </p>
-    <ul>
-      <li><strong>Allantis (delta-neutral, vende vol):</strong> FAV = pct &ge; 80 (cobra primas ricas).</li>
-      <li><strong>Batman (long fly + skew tilt, vende vol):</strong> FAV = pct &ge; 80 (similar a Allantis).</li>
-      <li><strong>BWB (vende puts OTM):</strong> <strong>FAV = pct &le; 20</strong> (necesita puts baratos para construir el sell side a bajo coste). <strong>Senal INVERTIDA</strong>.</li>
-    </ul>
-    <p>
-      La tabla siguiente muestra el PF en zona FAV (pct &ge; 80) por dia de evaluacion (d001-d010) para
-      las 3 estrategias usando la convencion estandar. Para BWB el numero "PF en pct &ge; 80" es bajo
-      precisamente PORQUE para BWB es zona adversa.
-    </p>
-    <div id="ev-tbl-cross"></div>
-    <div class="ev-callout warn" style="margin-top:14px">
-      <strong>Implicacion practica:</strong> antes de operar con este regimen, verifica que tipo de
-      estrategia estas planeando. Allantis/Batman/Single-leg siguen la convencion de la grafica;
-      BWB la invierte.
+      Si el spread HIGH menos LOW es positivo en la fila "sin filtro", el regimen de PUT SKEW al
+      observar el trade tiene poder predictivo del cambio de PnL futuro. Util como senal de
+      monitoreo mid-trade en Batman LT.
     </div>
   </div>
 
@@ -629,9 +602,9 @@ async function load() {
       { type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 20, y1: 20, line: { color: '#cf222e', width: 1, dash: 'dash' }, layer: 'below' },
     ],
     annotations: [
-      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 90, text: 'FAVORABLE (Allantis/Batman)', font: { color: '#3fb950', size: 10 }, showarrow: false, opacity: 0.7 },
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 90, text: 'FAVORABLE (Batman LT)', font: { color: '#3fb950', size: 10 }, showarrow: false, opacity: 0.7 },
       { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 50, text: 'NEUTRAL',   font: { color: '#d29922', size: 10 }, showarrow: false, opacity: 0.7 },
-      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 10, text: 'ADVERSO (Allantis/Batman) | FAVORABLE (BWB)',   font: { color: '#f85149', size: 10 }, showarrow: false, opacity: 0.7 },
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 10, text: 'ADVERSO (Batman LT) | FAVORABLE (BWB)',   font: { color: '#f85149', size: 10 }, showarrow: false, opacity: 0.7 },
     ],
     legend: { orientation: 'h', y: -0.18, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' },
     hovermode: 'x unified',
@@ -690,7 +663,6 @@ async function loadEvidence() {
     'ev-tbl-years':    'years',
     'ev-tbl-regimes':  'regimes',
     'ev-tbl-window':   'window_forward',
-    'ev-tbl-cross':    'cross_strategy',
   };
   if (ev.tables_html) {
     for (const [elId, key] of Object.entries(tableMap)) {

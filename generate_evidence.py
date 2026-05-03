@@ -4,21 +4,20 @@
 generate_evidence.py
 ====================
 One-shot regenerator for the statistical evidence section of the
-PUT_SKEW_NIVEL dashboard.
+PUT_SKEW_NIVEL_BATMAN_LT dashboard.
 
-Computes statistical evidence of `skew_25d_vs50_pct_expanding` (PUT SKEW NIVEL)
-vs Allantis MT PnL across horizons d001..d049, with SPX flat filter (|SPX|<=3%):
-  - Spearman correlation + bootstrap CI95 by horizon (sin filtro vs |SPX|<=3%)
-  - Decile breakdown (D1..D10) at d030
+Validates `skew_25d_vs50_pct_expanding` (PUT SKEW NIVEL, DTE 60, 10:30 ET)
+against Batman LT PnL exclusively. NO Allantis. NO SPX filter as primary.
+
+  - Spearman correlation + bootstrap CI95 by horizon d001..d049
+  - Decile breakdown (D1..D10) at d020 (matches LIBERATION dashboard)
   - Year stability 2019..2025
-  - Regime split: FAVORABLE >=80 / NEUTRAL / ADVERSO <=20
+  - Regime split FAVORABLE >=80 / NEUTRAL / ADVERSO <=20 at d020 + d050
+  - Window-forward conditioning (HIGH/LOW PUT_SKEW at observation t),
+    computed in-script from Batman LT trades. 3 SPX filter contexts
+    (sin filtro / |SPX|<=3% / |SPX|<=2%) for the chart, but the rules block
+    at the top is sin filtro (canonical).
 
-Plus pre-computed evidence pulled from:
-  - `Skew/ANALISIS/02_PUT_SKEW_NIVEL/PUT_SKEW_NIVEL_window_forward_results.csv` (Section 7)
-  - `Skew/ANALISIS/02_PUT_SKEW_NIVEL/PF_DXXX_P20_P80/put_pct_ge80_pf_d010_step10.csv` (Section 8)
-  - `Skew/ANALISIS/02_PUT_SKEW_NIVEL/PF_DXXX_P20_P80/put_pct_lt20_pf_d010_step10.csv` (Section 8)
-
-Independent of update_dashboard.py and V0 master pipeline.
 Manual regen with:
     python generate_evidence.py            # local only
     python generate_evidence.py --push     # local + git push to GitHub Pages
@@ -57,20 +56,13 @@ except Exception:
 DASHBOARD_DIR = Path(r"C:\Users\Administrator\Desktop\PUT_SKEW_NIVEL_DASHBOARD")
 EVIDENCE_DIR = DASHBOARD_DIR / "evidence"
 
-ALLANTIS_CSV = Path(
-    r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Allantis\LIVE"
-    r"\[MAIN RANKEO MT]_combined_ALLANTIS_ALLDAYS.csv"
+BATMAN_LT_CSV = Path(
+    r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Batman\SPX\LIVE"
+    r"\[MAIN RANKEO LT]_combined_BATMAN_mediana_w_stats_w_vix_OWN_ALLDAYS.csv"
 )
 SKEW_ENRICHED_CSV = Path(
     r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Skew\SKEW_PUT_ENRICHED.csv"
 )
-
-PUT_SKEW_ANALYSIS_DIR = Path(
-    r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Skew\ANALISIS\02_PUT_SKEW_NIVEL"
-)
-WINDOW_FORWARD_CSV = PUT_SKEW_ANALYSIS_DIR / "PUT_SKEW_NIVEL_window_forward_results.csv"
-PF_GE80_CSV = PUT_SKEW_ANALYSIS_DIR / "PF_DXXX_P20_P80" / "put_pct_ge80_pf_d010_step10.csv"
-PF_LT20_CSV = PUT_SKEW_ANALYSIS_DIR / "PF_DXXX_P20_P80" / "put_pct_lt20_pf_d010_step10.csv"
 
 GH_REPO = "manumartinb/PUT_SKEW_NIVEL_BATMAN_LT"
 GH_USER_NAME = "manumartinb"
@@ -79,34 +71,34 @@ TOKEN_ENV = "GH_PUT_SKEW_TOKEN"
 BRANCH = "main"
 TZ = ZoneInfo("Europe/Madrid")
 
-# Analysis params
-SCORE_COL = "PUT_SKEW_PCT"   # name we give to the joined column locally
-DATE_COL = "dia"             # Allantis CSV uses 'dia' as date column (not trade_date)
+# Analysis params (consistent with LIBERATION dashboard rules block)
+SCORE_COL = "PUT_SKEW_PCT"
+DATE_COL = "trade_date"
 WINDOWS = list(range(1, 50))
 CHECKPOINTS = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 49]
 BOOTSTRAP_N = 2000
 BOOTSTRAP_SEED = 42
 REGIME_FAV_MIN = 80.0
 REGIME_ADV_MAX = 20.0
-PNL_REF_HORIZON = 30                # d030 = referencia del MD Allantis SPX FLAT
-SPX_FILTER_PCT = 3.0                # |SPX_chg_pct_d030| <= 3%
-SPX_FILTER_HORIZON = 30             # window de SPX_chg_pct_d{H} usada para filtrar
+PNL_REF_HORIZON = 20  # d020 = canonical Batman LT horizon (matches LIBERATION rules)
 
-# Dark theme matching the dashboard
+# Window-forward params (in-script computation, no external CSV)
+WF_OBS_DAYS = [0, 10, 20, 30, 40]
+WF_FORWARDS = [20, 50]
+WF_SPX_FILTERS = ["sin filtro", "|SPX|<=3%", "|SPX|<=2%"]
+
+# Dark theme
 DARK_BG = "#0d1117"
 DARK_PANEL = "#161b22"
 DARK_TEXT = "#c9d1d9"
 DARK_MUTED = "#8b949e"
 DARK_BORDER = "#30363d"
 DARK_GRID = "#21262d"
-COLOR_TENSION = "#58a6ff"     # main score color (heredado del template)
+COLOR_TENSION = "#58a6ff"
 COLOR_FAV = "#3fb950"
 COLOR_NEU = "#d29922"
 COLOR_ADV = "#f85149"
 COLOR_ACCENT = "#a371f7"
-
-
-# ============================== UTILS ==============================
 
 
 def _setup_matplotlib_dark() -> None:
@@ -182,26 +174,26 @@ def _fmt_pct(v: float, prec: int = 1) -> str:
     return f"{v:.{prec}f}%"
 
 
-# ============================== LOAD + JOIN ==============================
+# ============================== LOAD ==============================
 
 
 @dataclass
 class Dataset:
-    df: pd.DataFrame             # joined Allantis x PUT_SKEW (already filtered)
-    df_unfiltered: pd.DataFrame  # joined but WITHOUT SPX filter (for sin filtro comparisons)
+    df: pd.DataFrame
     n_trades: int
     n_days: int
     date_min: str
     date_max: str
-    spx_filter_label: str
+    psk_daily: pd.DataFrame  # for window forward lookup
 
 
 def _load_skew_daily() -> pd.DataFrame:
-    """Daily PUT SKEW NIVEL series (one value per trade_date, DTE=60, 10:30, PUT)."""
     cols = {"trade_date", "snapshot_time", "dte_target", "side",
             "skew_25d_vs50", "skew_25d_vs50_pct_expanding"}
     s = pd.read_csv(SKEW_ENRICHED_CSV, usecols=lambda c: c in cols, low_memory=False)
-    s = s[(s["snapshot_time"] == "10:30:00") & (s["dte_target"] == 60) & (s["side"] == "PUT")].copy()
+    s = s[(s["snapshot_time"] == "10:30:00")
+          & (s["dte_target"] == 60)
+          & (s["side"] == "PUT")].copy()
     s["trade_date"] = pd.to_datetime(s["trade_date"], errors="coerce")
     s = s.dropna(subset=["trade_date", "skew_25d_vs50_pct_expanding"]).copy()
     s["trade_date"] = s["trade_date"].dt.normalize()
@@ -212,61 +204,38 @@ def _load_skew_daily() -> pd.DataFrame:
 
 
 def load_dataset() -> Dataset:
-    if not ALLANTIS_CSV.exists():
-        raise FileNotFoundError(f"Allantis CSV not found: {ALLANTIS_CSV}")
+    """Load Batman LT trades, join with daily PUT_SKEW. NO filter applied."""
+    if not BATMAN_LT_CSV.exists():
+        raise FileNotFoundError(f"Batman LT CSV not found: {BATMAN_LT_CSV}")
     if not SKEW_ENRICHED_CSV.exists():
         raise FileNotFoundError(f"SKEW_PUT_ENRICHED not found: {SKEW_ENRICHED_CSV}")
 
     pnl_cols = [f"PnL_d{d:03d}_mediana" for d in WINDOWS]
-    spx_filter_col = f"SPX_chg_pct_d{SPX_FILTER_HORIZON:03d}"
-    needed = {DATE_COL, spx_filter_col} | set(pnl_cols)
-    print(f"[INFO] reading Allantis {ALLANTIS_CSV.name} (subset cols)")
-    # encoding='utf-8-sig' strips the BOM that prefixes 'dia' in this CSV
-    a = pd.read_csv(ALLANTIS_CSV, usecols=lambda c: c.replace("﻿", "") in needed,
-                    low_memory=False, encoding="utf-8-sig")
-    # Some readers preserve the BOM in the column name; rename if present
-    a.columns = [str(c).replace("﻿", "") for c in a.columns]
-    if DATE_COL not in a.columns:
-        raise RuntimeError(f"Allantis CSV missing date column '{DATE_COL}'. "
-                           f"Available: {list(a.columns)[:10]}")
-    a[DATE_COL] = pd.to_datetime(a[DATE_COL], errors="coerce")
-    a[DATE_COL] = a[DATE_COL].dt.normalize()
-    for c in pnl_cols + [spx_filter_col]:
-        if c in a.columns:
-            a[c] = pd.to_numeric(a[c], errors="coerce")
-    a = a.dropna(subset=[DATE_COL]).copy()
+    spx_cols = [f"SPX_chg_pct_d{d:03d}" for d in WINDOWS]
+    needed = {DATE_COL} | set(pnl_cols) | set(spx_cols)
+    print(f"[INFO] reading Batman LT {BATMAN_LT_CSV.name} (subset cols)")
+    bm = pd.read_csv(BATMAN_LT_CSV, usecols=lambda c: c in needed, low_memory=False)
+    bm[DATE_COL] = pd.to_datetime(bm[DATE_COL], errors="coerce").dt.normalize()
+    for c in pnl_cols + spx_cols:
+        if c in bm.columns:
+            bm[c] = pd.to_numeric(bm[c], errors="coerce")
+    bm = bm.dropna(subset=[DATE_COL]).copy()
 
-    print(f"[INFO] reading SKEW_PUT_ENRICHED.csv and filtering DTE=60/10:30/PUT")
+    print(f"[INFO] reading SKEW_PUT_ENRICHED.csv (DTE=60/10:30/PUT)")
     s = _load_skew_daily()
-    # Skew CSV uses 'trade_date'; rename to align with Allantis 'dia' for the merge
-    s = s.rename(columns={"trade_date": DATE_COL})
 
-    print(f"[INFO] joining Allantis ({len(a):,}) x PUT SKEW daily ({len(s):,}) on '{DATE_COL}'")
-    df = a.merge(s, on=DATE_COL, how="inner")
+    print(f"[INFO] joining Batman LT ({len(bm):,}) x PUT SKEW daily ({len(s):,})")
+    df = bm.merge(s, on=DATE_COL, how="inner")
     df = df.dropna(subset=[SCORE_COL]).copy()
-    print(f"[INFO] after join + dropna(SCORE): {len(df):,} trades")
-
-    # Apply SPX filter (cleanest signal per documented analysis).
-    # NOTE: SPX_chg_pct_d030 is expressed in PERCENTAGE POINTS (e.g., -3.5 for -3.5%),
-    # not fractions. So compare directly with SPX_FILTER_PCT (3.0 = 3%).
-    if spx_filter_col in df.columns:
-        mask = df[spx_filter_col].abs() <= SPX_FILTER_PCT
-        df_f = df[mask].copy()
-        spx_label = f"|SPX_chg_pct_d{SPX_FILTER_HORIZON:03d}|<={SPX_FILTER_PCT:.0f}%"
-        print(f"[INFO] after SPX filter ({spx_label}): {len(df_f):,} trades "
-              f"({100*len(df_f)/max(1,len(df)):.1f}% retained)")
-    else:
-        df_f = df.copy()
-        spx_label = "no filter (column missing)"
+    print(f"[INFO] joined: {len(df):,} trades")
 
     return Dataset(
-        df=df_f.reset_index(drop=True),
-        df_unfiltered=df.reset_index(drop=True),
-        n_trades=int(len(df_f)),
-        n_days=int(df_f[DATE_COL].nunique()),
-        date_min=str(df_f[DATE_COL].min().date()) if len(df_f) > 0 else "n/a",
-        date_max=str(df_f[DATE_COL].max().date()) if len(df_f) > 0 else "n/a",
-        spx_filter_label=spx_label,
+        df=df.reset_index(drop=True),
+        n_trades=int(len(df)),
+        n_days=int(df[DATE_COL].nunique()),
+        date_min=str(df[DATE_COL].min().date()),
+        date_max=str(df[DATE_COL].max().date()),
+        psk_daily=s,
     )
 
 
@@ -315,12 +284,11 @@ def _adjacent_non_decreasing_ratio(means: pd.Series) -> float:
 
 def _bootstrap_ci(score: np.ndarray, pnl: np.ndarray, dec: np.ndarray,
                   n_boot: int, seed: int) -> Dict[str, float]:
-    """Bootstrap CI95 using rank-once optimization (Pearson on pre-ranked vectors)."""
+    """Bootstrap CI95 with rank-once optimization."""
     n = score.size
     if n < 30:
         return {"sp_lo": float("nan"), "sp_hi": float("nan"),
                 "delta_lo": float("nan"), "delta_hi": float("nan")}
-
     score_rank = pd.Series(score).rank().to_numpy(dtype=float)
     pnl_rank = pd.Series(pnl).rank().to_numpy(dtype=float)
     rng = np.random.default_rng(seed)
@@ -346,14 +314,12 @@ def _bootstrap_ci(score: np.ndarray, pnl: np.ndarray, dec: np.ndarray,
 
 
 def compute_horizon_metrics(ds: Dataset) -> pd.DataFrame:
-    """Spearman + bootstrap CI95 by horizon, on the SPX-filtered dataset.
-
-    Adds an extra column `spearman_unfiltered` (without SPX filter) for comparison.
-    """
+    """Spearman + bootstrap CI95 by horizon. Batman LT no filter."""
     rows = []
     for d in WINDOWS:
         pnl_col = f"PnL_d{d:03d}_mediana"
-        # Filtered
+        if pnl_col not in ds.df.columns:
+            continue
         sub = ds.df[[DATE_COL, SCORE_COL, pnl_col]].copy()
         sub = sub.rename(columns={SCORE_COL: "score", pnl_col: "pnl"}).dropna(subset=["score", "pnl"])
         if len(sub) < 100:
@@ -374,14 +340,8 @@ def compute_horizon_metrics(ds: Dataset) -> pd.DataFrame:
         else:
             delta_mean = float("nan"); pf_ratio = float("nan")
 
-        sp_filt = _safe_spearman(sub["score"].to_numpy(dtype=float),
-                                 sub["pnl"].to_numpy(dtype=float))
-
-        # Unfiltered Spearman for comparison
-        sub_uf = ds.df_unfiltered[[DATE_COL, SCORE_COL, pnl_col]].copy()
-        sub_uf = sub_uf.rename(columns={SCORE_COL: "score", pnl_col: "pnl"}).dropna(subset=["score", "pnl"])
-        sp_uf = _safe_spearman(sub_uf["score"].to_numpy(dtype=float),
-                               sub_uf["pnl"].to_numpy(dtype=float)) if len(sub_uf) >= 100 else float("nan")
+        sp = _safe_spearman(sub["score"].to_numpy(dtype=float),
+                            sub["pnl"].to_numpy(dtype=float))
 
         do_boot = (d in CHECKPOINTS)
         if do_boot:
@@ -399,9 +359,7 @@ def compute_horizon_metrics(ds: Dataset) -> pd.DataFrame:
         rows.append({
             "horizon_d": d,
             "N": int(len(sub)),
-            "N_unfiltered": int(len(sub_uf)),
-            "spearman": sp_filt,
-            "spearman_unfiltered": sp_uf,
+            "spearman": sp,
             "spearman_ci_lo": ci["sp_lo"],
             "spearman_ci_hi": ci["sp_hi"],
             "delta_mean_d10_d1": delta_mean,
@@ -462,11 +420,11 @@ def compute_regimes(ds: Dataset) -> pd.DataFrame:
 
     sub_d["regime"] = sub_d[SCORE_COL].apply(_bucket)
 
-    rows = []
     horizons = [(f"PnL_d{PNL_REF_HORIZON:03d}_mediana", f"d{PNL_REF_HORIZON:03d}")]
     if "PnL_d050_mediana" in sub_d.columns:
         horizons.append(("PnL_d050_mediana", "d050"))
 
+    rows = []
     for label in ["FAVORABLE", "NEUTRAL", "ADVERSO"]:
         g = sub_d[sub_d["regime"] == label]
         n = int(len(g))
@@ -499,16 +457,93 @@ def compute_regimes(ds: Dataset) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compute_window_forward(ds: Dataset) -> pd.DataFrame:
+    """Window-forward analysis on Batman LT trades.
+
+    For each trade: at observation day t, look at PUT_SKEW value at trade_date+t.
+    Classify HIGH (>=80) or LOW (<=20). Compute delta_PnL between t and t+x days.
+    Apply optional SPX filter on |SPX_chg in window|.
+    """
+    print(f"[INFO] computing window-forward in-script (Batman LT, {len(WF_OBS_DAYS)} obs days x {len(WF_FORWARDS)} forwards x {len(WF_SPX_FILTERS)} filters)")
+    psk_lookup = ds.psk_daily.set_index("trade_date")[SCORE_COL]
+
+    def _ps_at(dt):
+        idx = psk_lookup.index.searchsorted(dt, side="right") - 1
+        return float(psk_lookup.iloc[idx]) if idx >= 0 else float("nan")
+
+    # Pre-compute PUT_SKEW at each observation day for every trade
+    obs_ps = {}
+    for t in WF_OBS_DAYS:
+        target_dates = ds.df[DATE_COL] + pd.Timedelta(days=t)
+        obs_ps[t] = np.array([_ps_at(d) for d in target_dates])
+
+    rows = []
+    for t in WF_OBS_DAYS:
+        ps_t = obs_ps[t]
+        for x in WF_FORWARDS:
+            # PnL change between t and t+x
+            tx = t + x
+            pnl_t_col = "ZERO_AT_T0" if t == 0 else f"PnL_d{t:03d}_mediana"
+            pnl_tx_col = f"PnL_d{tx:03d}_mediana"
+            spx_t_col = "ZERO_AT_T0" if t == 0 else f"SPX_chg_pct_d{t:03d}"
+            spx_tx_col = f"SPX_chg_pct_d{tx:03d}"
+            if pnl_tx_col not in ds.df.columns:
+                continue
+            if t == 0:
+                pnl_t = np.zeros(len(ds.df))
+                spx_t = np.zeros(len(ds.df))
+            else:
+                if pnl_t_col not in ds.df.columns:
+                    continue
+                pnl_t = pd.to_numeric(ds.df[pnl_t_col], errors="coerce").to_numpy()
+                spx_t = pd.to_numeric(ds.df[spx_t_col], errors="coerce").to_numpy() if spx_t_col in ds.df.columns else np.zeros(len(ds.df))
+            pnl_tx = pd.to_numeric(ds.df[pnl_tx_col], errors="coerce").to_numpy()
+            spx_tx = pd.to_numeric(ds.df[spx_tx_col], errors="coerce").to_numpy() if spx_tx_col in ds.df.columns else np.zeros(len(ds.df))
+            delta_pnl = pnl_tx - pnl_t
+            spx_window_chg = spx_tx - spx_t
+            for flt in WF_SPX_FILTERS:
+                if flt == "sin filtro":
+                    mask = np.ones(len(ds.df), dtype=bool)
+                elif flt == "|SPX|<=3%":
+                    mask = np.abs(spx_window_chg) <= 3.0
+                elif flt == "|SPX|<=2%":
+                    mask = np.abs(spx_window_chg) <= 2.0
+                else:
+                    continue
+                ps_valid = ~np.isnan(ps_t)
+                pnl_valid = ~np.isnan(delta_pnl)
+                base_mask = mask & ps_valid & pnl_valid
+                # HIGH cohort
+                high_mask = base_mask & (ps_t >= REGIME_FAV_MIN)
+                low_mask = base_mask & (ps_t <= REGIME_ADV_MAX)
+                d_high = delta_pnl[high_mask]
+                d_low = delta_pnl[low_mask]
+                if len(d_high) < 10 and len(d_low) < 10:
+                    continue
+                rows.append({
+                    "t": t, "x": x, "spx_filter": flt,
+                    "N_high": int(len(d_high)),
+                    "N_low": int(len(d_low)),
+                    "high_mean": float(np.mean(d_high)) if len(d_high) > 0 else float("nan"),
+                    "high_median": float(np.median(d_high)) if len(d_high) > 0 else float("nan"),
+                    "high_WR": (100.0 * float((d_high > 0).mean())) if len(d_high) > 0 else float("nan"),
+                    "low_mean": float(np.mean(d_low)) if len(d_low) > 0 else float("nan"),
+                    "low_median": float(np.median(d_low)) if len(d_low) > 0 else float("nan"),
+                    "low_WR": (100.0 * float((d_low > 0).mean())) if len(d_low) > 0 else float("nan"),
+                    "spread": (float(np.mean(d_high) - np.mean(d_low))
+                               if (len(d_high) > 0 and len(d_low) > 0) else float("nan")),
+                })
+    return pd.DataFrame(rows)
+
+
 # ============================== PLOTS ==============================
 
 
 def plot_spearman_curve(horizons: pd.DataFrame, out_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 4.6))
     h = horizons.sort_values("horizon_d")
-    ax.plot(h["horizon_d"], h["spearman_unfiltered"], "-",
-            color=DARK_MUTED, linewidth=1.2, label="Spearman r (sin filtro)")
     ax.plot(h["horizon_d"], h["spearman"], "-",
-            color=COLOR_TENSION, linewidth=2.0, label="Spearman r (|SPX|<=3%)")
+            color=COLOR_TENSION, linewidth=2.0, label="Spearman r")
     ck = h[h["is_checkpoint"] == 1]
     ax.errorbar(
         ck["horizon_d"], ck["spearman"],
@@ -520,7 +555,7 @@ def plot_spearman_curve(horizons: pd.DataFrame, out_path: Path) -> None:
     ax.axhline(0, color=DARK_MUTED, linewidth=0.8, linestyle="--", alpha=0.7)
     ax.set_xlabel("Horizonte (dias)")
     ax.set_ylabel("Spearman r (PUT SKEW NIVEL vs PnL)")
-    ax.set_title("Predictividad de PUT SKEW NIVEL por horizonte (Allantis MT, d001-d049)")
+    ax.set_title("Predictividad de PUT SKEW NIVEL por horizonte (Batman LT, d001-d049)")
     ax.set_xticks([1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 49])
     ax.legend(loc="lower right", framealpha=0.9, facecolor=DARK_PANEL, edgecolor=DARK_BORDER)
     fig.tight_layout()
@@ -546,8 +581,8 @@ def plot_decile_bars(decs: pd.DataFrame, out_path: Path) -> None:
                     color=DARK_TEXT, fontsize=9)
     ax.axhline(0, color=DARK_MUTED, linewidth=0.8)
     ax.set_xlabel("Decil de PUT SKEW NIVEL (1=puts baratos, 10=puts caros)")
-    ax.set_ylabel(f"PnL medio d{PNL_REF_HORIZON:03d} Allantis (puntos)")
-    ax.set_title(f"PnL d{PNL_REF_HORIZON:03d} Allantis MT por decil de PUT SKEW NIVEL  (|SPX|<=3%)")
+    ax.set_ylabel(f"PnL medio d{PNL_REF_HORIZON:03d} Batman LT (puntos)")
+    ax.set_title(f"PnL d{PNL_REF_HORIZON:03d} Batman LT por decil de PUT SKEW NIVEL")
     ax.set_xticks(list(range(1, 11)))
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
@@ -565,7 +600,7 @@ def plot_year_stability(years: pd.DataFrame, out_path: Path) -> None:
         ax1.bar(y["year"].astype(str), y["spearman"], color=colors,
                 edgecolor=DARK_BORDER, linewidth=0.8)
         ax1.axhline(0, color=DARK_MUTED, linewidth=0.8)
-        ax1.set_title(f"Spearman r por anio (d{PNL_REF_HORIZON:03d}, |SPX|<=3%)")
+        ax1.set_title(f"Spearman r por anio (d{PNL_REF_HORIZON:03d}, Batman LT)")
         ax1.set_ylabel("Spearman r")
         for x, v in zip(y["year"].astype(str), y["spearman"]):
             ax1.text(x, v, f"{v:+.2f}", ha="center",
@@ -613,7 +648,7 @@ def plot_regime_pnl(regimes: pd.DataFrame, out_path: Path) -> None:
                     va="bottom" if m >= 0 else "top",
                     color=DARK_TEXT, fontsize=9)
         ax.axhline(0, color=DARK_MUTED, linewidth=0.8)
-        ax.set_title(f"PnL {hkey} Allantis por regimen (|SPX|<=3%)")
+        ax.set_title(f"PnL {hkey} Batman LT por regimen")
         ax.set_ylabel("PnL medio (pts)")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
@@ -637,7 +672,7 @@ def plot_delta_curve(horizons: pd.DataFrame, out_path: Path) -> None:
     ax.axhline(0, color=DARK_MUTED, linewidth=0.8, linestyle="--", alpha=0.7)
     ax.set_xlabel("Horizonte (dias)")
     ax.set_ylabel("Delta PnL medio D10-D1 (pts)")
-    ax.set_title("Spread D10 - D1 por horizonte (Allantis MT, |SPX|<=3%)")
+    ax.set_title("Spread D10 - D1 por horizonte (Batman LT)")
     ax.set_xticks([1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 49])
     ax.legend(loc="lower right", framealpha=0.9, facecolor=DARK_PANEL, edgecolor=DARK_BORDER)
     fig.tight_layout()
@@ -645,26 +680,17 @@ def plot_delta_curve(horizons: pd.DataFrame, out_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_window_forward(csv_path: Path, out_path: Path) -> bool:
-    if not csv_path.exists():
-        print(f"[WARN] window-forward CSV not found: {csv_path}")
-        return False
-    try:
-        df = pd.read_csv(csv_path)
-    except Exception as exc:
-        print(f"[WARN] failed to read window-forward CSV: {exc}")
-        return False
-
-    filters_order = ["sin filtro", "|SPX|<=3%", "|SPX|<=2%"]
-    forwards = [20, 50]
-    obs_days = sorted([int(t) for t in df["t"].unique()])
+def plot_window_forward(wf: pd.DataFrame, out_path: Path) -> None:
+    """3 rows (SPX filter) x 2 cols (forward 20, 50)."""
+    if wf.empty:
+        return
+    obs_days = sorted([int(t) for t in wf["t"].unique()])
     n_obs = len(obs_days)
-
     fig, axes = plt.subplots(3, 2, figsize=(13, 11), sharey="col")
-    for i, flt in enumerate(filters_order):
-        for j, fwd in enumerate(forwards):
+    for i, flt in enumerate(WF_SPX_FILTERS):
+        for j, fwd in enumerate(WF_FORWARDS):
             ax = axes[i][j]
-            sub = df[(df["spx_filter"] == flt) & (df["x"] == fwd)].sort_values("t")
+            sub = wf[(wf["spx_filter"] == flt) & (wf["x"] == fwd)].sort_values("t")
             if sub.empty:
                 ax.text(0.5, 0.5, "no data", ha="center", va="center", color=DARK_MUTED)
                 continue
@@ -672,10 +698,10 @@ def plot_window_forward(csv_path: Path, out_path: Path) -> bool:
             w = 0.36
             ax.bar(x - w / 2, sub["high_mean"].values, w, color=COLOR_FAV,
                    edgecolor=DARK_BORDER, linewidth=0.7,
-                   label="HIGH (PUT SKEW P80+)" if (i == 0 and j == 0) else None)
+                   label="HIGH (PUT_SKEW P80+)" if (i == 0 and j == 0) else None)
             ax.bar(x + w / 2, sub["low_mean"].values, w, color=COLOR_ADV,
                    edgecolor=DARK_BORDER, linewidth=0.7,
-                   label="LOW (PUT SKEW P20-)" if (i == 0 and j == 0) else None)
+                   label="LOW (PUT_SKEW P20-)" if (i == 0 and j == 0) else None)
             ax.axhline(0, color=DARK_MUTED, linewidth=0.7)
             ax.set_xticks(x)
             ax.set_xticklabels([f"t={t}" for t in obs_days], fontsize=9)
@@ -683,7 +709,7 @@ def plot_window_forward(csv_path: Path, out_path: Path) -> bool:
             if j == 0:
                 ax.set_ylabel(f"Delta PnL en proximos {fwd}d (pts)", fontsize=9)
             if i == 2:
-                ax.set_xlabel("Observation day t (cuando miramos PUT SKEW)", fontsize=9)
+                ax.set_xlabel("Observation day t (cuando miramos PUT_SKEW)", fontsize=9)
             for k, (h, lo) in enumerate(zip(sub["high_mean"].values, sub["low_mean"].values)):
                 ax.text(k - w / 2, h, f"{h:+.1f}",
                         ha="center", va="bottom" if h >= 0 else "top",
@@ -694,9 +720,8 @@ def plot_window_forward(csv_path: Path, out_path: Path) -> bool:
             if i == 0 and j == 0:
                 ax.legend(loc="upper right", fontsize=8, framealpha=0.9,
                           facecolor=DARK_PANEL, edgecolor=DARK_BORDER)
-
     fig.suptitle(
-        "PUT SKEW NIVEL en ventana alta (P80+) vs baja (P20-): cambio de PnL en proximos x dias",
+        "PUT SKEW NIVEL en ventana alta (P80+) vs baja (P20-): cambio de PnL Batman LT en proximos x dias",
         fontsize=12, fontweight="bold", color=DARK_TEXT,
     )
     fig.text(0.5, 0.945,
@@ -705,7 +730,6 @@ def plot_window_forward(csv_path: Path, out_path: Path) -> bool:
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(out_path, dpi=140)
     plt.close(fig)
-    return True
 
 
 # ============================== TABLES ==============================
@@ -743,7 +767,6 @@ def build_table_horizons_html(horizons: pd.DataFrame) -> str:
         rows.append([
             f'd{int(r["horizon_d"]):03d}',
             _fmt_int(r["N"]),
-            _fmt(r["spearman_unfiltered"], 3),
             sp_str,
             delta_str,
             _fmt(r["pf_ratio_d10_d1"], 2),
@@ -751,8 +774,7 @@ def build_table_horizons_html(horizons: pd.DataFrame) -> str:
         ])
     return _table_html(
         rows,
-        header=["Horizonte", "N (filtrado)",
-                "r (sin filtro)", "r [CI95] (|SPX|<=3%)",
+        header=["Horizonte", "N", "Spearman r [CI95]",
                 "Delta D10-D1 [CI95]", "PF D10/D1", "Monotonia adj"],
     )
 
@@ -825,16 +847,14 @@ def build_table_regimes_html(regimes: pd.DataFrame) -> str:
     )
 
 
-def build_table_window_forward_html(csv_path: Path) -> str:
-    if not csv_path.exists():
-        return ("<p style='color:#f85149'>"
-                "PUT_SKEW_NIVEL_window_forward_results.csv no encontrado.</p>")
-    df = pd.read_csv(csv_path)
+def build_table_window_forward_html(wf: pd.DataFrame) -> str:
+    if wf.empty:
+        return "<p style='color:#f85149'>window_forward sin datos.</p>"
     rows = []
     for t in [0, 20, 40]:
         for fwd in [20, 50]:
-            for flt in ["sin filtro", "|SPX|<=3%", "|SPX|<=2%"]:
-                sub = df[(df["t"] == t) & (df["x"] == fwd) & (df["spx_filter"] == flt)]
+            for flt in WF_SPX_FILTERS:
+                sub = wf[(wf["t"] == t) & (wf["x"] == fwd) & (wf["spx_filter"] == flt)]
                 if sub.empty:
                     continue
                 r = sub.iloc[0]
@@ -861,52 +881,6 @@ def build_table_window_forward_html(csv_path: Path) -> str:
     )
 
 
-def build_table_cross_strategy_html() -> Tuple[str, Dict[str, list]]:
-    """Multi-strategy PF in zone FAV (pct>=80) vs zone ADV (pct<=20) by day."""
-    if not PF_GE80_CSV.exists() or not PF_LT20_CSV.exists():
-        return ("<p style='color:#f85149'>CSVs cross-strategy no encontrados.</p>", {})
-    ge80 = pd.read_csv(PF_GE80_CSV)
-    lt20 = pd.read_csv(PF_LT20_CSV)
-    rows = []
-    days = sorted(ge80["day"].unique().tolist()) if "day" in ge80.columns else []
-
-    for day in days:
-        rg = ge80[ge80["day"] == day]
-        rl = lt20[lt20["day"] == day]
-        if rg.empty:
-            continue
-        rg = rg.iloc[0]
-        rl = rl.iloc[0] if not rl.empty else None
-        rows.append([
-            f"d{int(day):03d}",
-            _fmt(float(rg.get("ALLANTIS_MT_PF", float("nan"))), 2),
-            _fmt_int(rg.get("ALLANTIS_MT_N", 0)),
-            _fmt(float(rl["ALLANTIS_MT_PF"]) if rl is not None else float("nan"), 2),
-            _fmt(float(rg.get("BATMAN_MT_PF", float("nan"))), 2),
-            _fmt_int(rg.get("BATMAN_MT_N", 0)),
-            _fmt(float(rl["BATMAN_MT_PF"]) if rl is not None else float("nan"), 2),
-            _fmt(float(rg.get("BATMAN_LT_PF", float("nan"))), 2),
-            _fmt_int(rg.get("BATMAN_LT_N", 0)),
-            _fmt(float(rl["BATMAN_LT_PF"]) if rl is not None else float("nan"), 2),
-        ])
-
-    summary = {
-        "ge80": ge80.to_dict(orient="records"),
-        "lt20": lt20.to_dict(orient="records"),
-    }
-    html = _table_html(
-        rows,
-        header=["Dia",
-                "Allantis MT PF (pct>=80)", "N",
-                "Allantis MT PF (pct<=20)",
-                "Batman MT PF (pct>=80)", "N",
-                "Batman MT PF (pct<=20)",
-                "Batman LT PF (pct>=80)", "N",
-                "Batman LT PF (pct<=20)"],
-    )
-    return html, summary
-
-
 # ============================== ORCHESTRATION ==============================
 
 
@@ -916,7 +890,6 @@ def build_evidence_json(
     decs: pd.DataFrame,
     years: pd.DataFrame,
     regimes: pd.DataFrame,
-    cross_strategy: Dict[str, list],
     tables: Dict[str, str],
 ) -> dict:
     sp_by_h = {f'd{int(r.horizon_d):03d}': float(r.spearman) for r in horizons.itertuples()}
@@ -929,7 +902,6 @@ def build_evidence_json(
         headline = {
             "horizon": f"d{PNL_REF_HORIZON:03d}",
             "spearman": float(r["spearman"]),
-            "spearman_unfiltered": float(r["spearman_unfiltered"]),
             "spearman_ci": [float(r["spearman_ci_lo"]), float(r["spearman_ci_hi"])],
             "delta_d10_d1": float(r["delta_mean_d10_d1"]),
             "delta_ci": [float(r["delta_ci_lo"]), float(r["delta_ci_hi"])],
@@ -949,13 +921,13 @@ def build_evidence_json(
     return {
         "generated_at": datetime.now(TZ).strftime("%Y-%m-%d %H:%M %Z"),
         "input": {
-            "allantis_csv": ALLANTIS_CSV.name,
+            "batman_lt_csv": BATMAN_LT_CSV.name,
             "skew_csv": SKEW_ENRICHED_CSV.name,
             "n_trades": ds.n_trades,
             "n_days": ds.n_days,
             "date_min": ds.date_min,
             "date_max": ds.date_max,
-            "spx_filter": ds.spx_filter_label,
+            "spx_filter": "no_filter (Batman LT exclusive)",
         },
         "params": {
             "score_col": "skew_25d_vs50_pct_expanding (PUT, DTE 60, 10:30)",
@@ -966,18 +938,15 @@ def build_evidence_json(
             "regime_favorable_min": REGIME_FAV_MIN,
             "regime_adverso_max": REGIME_ADV_MAX,
             "pnl_reference_horizon": PNL_REF_HORIZON,
-            "spx_filter_pct": SPX_FILTER_PCT,
-            "spx_filter_horizon": SPX_FILTER_HORIZON,
         },
         "put_skew": {
             "headline": headline,
             "spearman_by_horizon": sp_by_h,
             "delta_by_horizon": delta_by_h,
-            "deciles_d030": decs.to_dict(orient="records"),
+            "deciles_d020": decs.to_dict(orient="records"),
             "year_stability": years.to_dict(orient="records"),
             "regimes": regimes.to_dict(orient="records"),
         },
-        "cross_strategy": cross_strategy,
         "tables_html": tables,
         "images": images,
     }
@@ -990,36 +959,32 @@ def main(push: bool) -> int:
 
         ds = load_dataset()
         if ds.n_trades < 1000:
-            raise RuntimeError(f"after filtering, only {ds.n_trades} trades remain. Check filter.")
-        print(f"[INFO] dataset filtered: {ds.n_trades:,} trades / {ds.n_days:,} days "
-              f"({ds.date_min} -> {ds.date_max}) | filter={ds.spx_filter_label}")
+            raise RuntimeError(f"only {ds.n_trades} trades remain. Check data.")
+        print(f"[INFO] dataset: {ds.n_trades:,} trades / {ds.n_days:,} days "
+              f"({ds.date_min} -> {ds.date_max}). NO filter (Batman LT exclusive).")
 
-        print("[INFO] computing horizon metrics (d001..d049, bootstrap on 11 checkpoints)")
+        print("[INFO] computing horizon metrics (d001..d049)")
         horizons = compute_horizon_metrics(ds)
-        print(f"[INFO] horizons computed: {len(horizons)} rows")
 
         print(f"[INFO] computing decile table at d{PNL_REF_HORIZON:03d}")
         decs = compute_decile_table_ref(ds)
 
         print("[INFO] computing year stability")
         years = compute_year_stability(ds)
-        print(f"[INFO] year stability: {len(years)} years")
 
         print("[INFO] computing regime split")
         regimes = compute_regimes(ds)
 
-        print("[INFO] generating PNG plots (PUT SKEW vs Allantis MT)")
+        print("[INFO] generating PNG plots (Batman LT)")
         plot_spearman_curve(horizons, EVIDENCE_DIR / "put_skew_spearman_curve.png")
         plot_decile_bars(decs, EVIDENCE_DIR / "put_skew_decile_bars.png")
         plot_year_stability(years, EVIDENCE_DIR / "put_skew_year_stability.png")
         plot_regime_pnl(regimes, EVIDENCE_DIR / "put_skew_regime_pnl.png")
         plot_delta_curve(horizons, EVIDENCE_DIR / "put_skew_delta_curve.png")
 
-        print("[INFO] rendering window-forward chart from pre-computed CSV")
-        wf_ok = plot_window_forward(WINDOW_FORWARD_CSV,
-                                    EVIDENCE_DIR / "put_skew_window_forward.png")
-        if wf_ok:
-            print("[INFO] window-forward chart OK")
+        print("[INFO] computing window-forward in-script (Batman LT trades)")
+        wf = compute_window_forward(ds)
+        plot_window_forward(wf, EVIDENCE_DIR / "put_skew_window_forward.png")
 
         print("[INFO] building HTML tables")
         tables = {
@@ -1027,13 +992,11 @@ def main(push: bool) -> int:
             "deciles": build_table_deciles_html(decs),
             "years": build_table_years_html(years),
             "regimes": build_table_regimes_html(regimes),
-            "window_forward": build_table_window_forward_html(WINDOW_FORWARD_CSV),
+            "window_forward": build_table_window_forward_html(wf),
         }
-        cs_html, cs_summary = build_table_cross_strategy_html()
-        tables["cross_strategy"] = cs_html
 
         print("[INFO] writing evidence/evidence.json")
-        ev = build_evidence_json(ds, horizons, decs, years, regimes, cs_summary, tables)
+        ev = build_evidence_json(ds, horizons, decs, years, regimes, tables)
         out_json = EVIDENCE_DIR / "evidence.json"
         out_json.write_text(json.dumps(ev, ensure_ascii=False, separators=(",", ":")),
                             encoding="utf-8")
@@ -1041,11 +1004,10 @@ def main(push: bool) -> int:
         readme = EVIDENCE_DIR / "README.txt"
         readme.write_text(
             f"Evidence regenerated: {ev['generated_at']}\n"
-            f"Allantis input: {ALLANTIS_CSV.name}\n"
+            f"Batman LT input: {BATMAN_LT_CSV.name}\n"
             f"Skew input: {SKEW_ENRICHED_CSV.name}\n"
-            f"N trades (filtered): {ds.n_trades:,}  N days: {ds.n_days:,}\n"
+            f"N trades: {ds.n_trades:,}  N days: {ds.n_days:,}\n"
             f"Date range: {ds.date_min} to {ds.date_max}\n"
-            f"SPX filter: {ds.spx_filter_label}\n"
             f"Score: skew_25d_vs50_pct_expanding\n"
             f"Bootstrap: n={BOOTSTRAP_N}, seed={BOOTSTRAP_SEED}\n"
             f"Reference horizon: d{PNL_REF_HORIZON:03d}\n"
@@ -1055,11 +1017,10 @@ def main(push: bool) -> int:
 
         h = ev["put_skew"]["headline"]
         sp = h.get("spearman", float("nan"))
-        sp_uf = h.get("spearman_unfiltered", float("nan"))
         ci = h.get("spearman_ci", [float("nan"), float("nan")])
         delta = h.get("delta_d10_d1", float("nan"))
-        print(f"[OK] headline d{PNL_REF_HORIZON:03d}: r(filt)={sp:.3f} CI95=[{ci[0]:.3f}, {ci[1]:.3f}] | "
-              f"r(sin filtro)={sp_uf:.3f} | delta_D10_D1={delta:.2f} pts")
+        print(f"[OK] headline d{PNL_REF_HORIZON:03d}: r={sp:.3f} "
+              f"CI95=[{ci[0]:.3f}, {ci[1]:.3f}]  delta_D10_D1={delta:.2f} pts")
 
         if push:
             return git_push()
@@ -1111,7 +1072,7 @@ def git_push() -> int:
         return 0
 
     today = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
-    commit = _git(["commit", "-m", f"evidence regen {today}"])
+    commit = _git(["commit", "-m", f"evidence regen Batman LT exclusive {today}"])
     if commit.returncode != 0:
         print(f"[X] commit failed: {commit.stderr.strip()}")
         return 1
@@ -1130,7 +1091,7 @@ def git_push() -> int:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Regenerate PUT SKEW NIVEL dashboard evidence.")
+    parser = argparse.ArgumentParser(description="Regenerate PUT_SKEW_NIVEL_BATMAN_LT dashboard evidence (Batman LT exclusive).")
     parser.add_argument("--push", action="store_true",
                         help="After regen, commit and push to GitHub Pages.")
     args = parser.parse_args()
