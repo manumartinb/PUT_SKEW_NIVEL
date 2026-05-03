@@ -374,8 +374,7 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
   (sin lookahead) del spread de IV entre puts OTM 25-delta y puts ATM 50-delta a DTE 60. Mide cuan "caro"
   esta el seguro de cola en puts respecto a su propia historia. <strong>FAVORABLE</strong> &gt;= 80
   (puts OTM caros, alta demanda de proteccion / volatilidad), <strong>ADVERSO</strong> &le; 20 (puts
-  baratos, complacencia), <strong>NEUTRAL</strong> 20-80. <strong>OJO BWB:</strong> la convencion se
-  invierte (BWB vende puts -> prefiere puts baratos -> BWB FAV = pct &le; 20).
+  baratos, complacencia), <strong>NEUTRAL</strong> 20-80.
 </div>
 <div class="rules" id="rules">
   <h2>Como usar PUT_SKEW NIVEL (operativa)</h2>
@@ -440,11 +439,6 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
   <h3>Caveat</h3>
   <p>FAV bate al universo en 5 de 7 anios. Fallo: 2021. 2023 sin trades FAV
   (PUT_SKEW nunca &ge;80 en dias Batman LT activos ese ano).</p>
-
-  <p style="font-size:12px;color:#8b949e;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-    <strong>OJO BWB</strong>: la convencion se invierte. Para BWB (vende puts) <strong>FAV = pct &le; 20</strong>
-    y <strong>ADV = pct &ge; 80</strong>. Las metricas de arriba son para la convencion Batman LT (no aplican a BWB).
-  </p>
 </div>
 <section id="evidence">
 
@@ -467,12 +461,6 @@ h1 { font-size: 18px; margin: 0; font-weight: 600; }
       <strong>Bandas operativas (convencion Batman LT):</strong> FAVORABLE &ge; 80 (puts caros,
       condicion ideal para vender vol structurada que se beneficia de mean-reversion del skew) &middot;
       NEUTRAL 20-80 &middot; ADVERSO &le; 20 (puts baratos, condicion adversa para vender vol).
-    </div>
-    <div class="ev-callout warn">
-      <strong>Inversion para BWB:</strong> BWB (broken wing butterfly) <em>vende</em> puts y necesita
-      puts baratos para entrar bien. Para BWB la convencion se invierte: <strong>BWB FAVORABLE = pct
-      &le; 20</strong>, <strong>BWB ADVERSO = pct &ge; 80</strong>. La grafica de arriba pinta la
-      convencion estandar Batman LT; reinterpretar mentalmente para BWB.
     </div>
   </div>
 
@@ -693,7 +681,7 @@ async function load() {
     annotations: [
       { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 90, text: 'FAVORABLE (Batman LT)', font: { color: '#3fb950', size: 10 }, showarrow: false, opacity: 0.7 },
       { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 50, text: 'NEUTRAL',   font: { color: '#d29922', size: 10 }, showarrow: false, opacity: 0.7 },
-      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 10, text: 'ADVERSO (Batman LT) | FAVORABLE (BWB)',   font: { color: '#f85149', size: 10 }, showarrow: false, opacity: 0.7 },
+      { xref: 'paper', x: 1, xanchor: 'right', yref: 'y', y: 10, text: 'ADVERSO (Batman LT)',   font: { color: '#f85149', size: 10 }, showarrow: false, opacity: 0.7 },
     ],
     legend: { orientation: 'h', y: -0.18, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' },
     hovermode: 'x unified',
