@@ -464,6 +464,49 @@ def compute_regimes(ds: Dataset) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compute_continuous_curve(ds: Dataset, n_boot: int = 500) -> pd.DataFrame:
+    """For each horizon x in 1..50, mean PnL Batman LT at d{x} for HIGH (PUT_SKEW>=80
+    at entry) vs LOW (PUT_SKEW<=20 at entry) cohorts, with bootstrap CI95.
+
+    This is the continuous version of Section 7 window-forward, fixed at t=0 (entry).
+    """
+    print(f"[INFO] computing continuous curve P80+ vs P20- at entry, horizons 1..50")
+    score_arr = ds.df[SCORE_COL].to_numpy(dtype=float)
+    high_mask = score_arr >= REGIME_FAV_MIN
+    low_mask = score_arr <= REGIME_ADV_MAX
+    rows = []
+    for x in range(1, 51):
+        col = f"PnL_d{x:03d}_mediana"
+        if col not in ds.df.columns:
+            continue
+        pnl = pd.to_numeric(ds.df[col], errors="coerce").to_numpy(dtype=float)
+        valid = ~np.isnan(pnl)
+        h_pnl = pnl[high_mask & valid]
+        l_pnl = pnl[low_mask & valid]
+        if len(h_pnl) < 30 or len(l_pnl) < 30:
+            continue
+        rng = np.random.default_rng(BOOTSTRAP_SEED + x)
+        h_boot = np.empty(n_boot, dtype=float)
+        l_boot = np.empty(n_boot, dtype=float)
+        nh, nl = len(h_pnl), len(l_pnl)
+        for b in range(n_boot):
+            h_boot[b] = float(np.mean(h_pnl[rng.integers(0, nh, size=nh)]))
+            l_boot[b] = float(np.mean(l_pnl[rng.integers(0, nl, size=nl)]))
+        rows.append({
+            "x": x,
+            "n_high": nh,
+            "n_low": nl,
+            "high_mean": float(np.mean(h_pnl)),
+            "low_mean": float(np.mean(l_pnl)),
+            "spread": float(np.mean(h_pnl) - np.mean(l_pnl)),
+            "high_ci_lo": float(np.percentile(h_boot, 2.5)),
+            "high_ci_hi": float(np.percentile(h_boot, 97.5)),
+            "low_ci_lo": float(np.percentile(l_boot, 2.5)),
+            "low_ci_hi": float(np.percentile(l_boot, 97.5)),
+        })
+    return pd.DataFrame(rows)
+
+
 def compute_window_forward(ds: Dataset) -> pd.DataFrame:
     """Window-forward analysis on Batman LT trades.
 
@@ -682,6 +725,47 @@ def plot_delta_curve(horizons: pd.DataFrame, out_path: Path) -> None:
     ax.set_title("Spread D10 - D1 por horizonte (Batman LT)")
     ax.set_xticks([1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 49])
     ax.legend(loc="lower right", framealpha=0.9, facecolor=DARK_PANEL, edgecolor=DARK_BORDER)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_continuous_curve(curve: pd.DataFrame, out_path: Path) -> None:
+    """Continuous PnL trajectory for HIGH (P80+) vs LOW (P20-) at entry, horizons 1..50."""
+    if curve.empty:
+        return
+    fig, ax = plt.subplots(figsize=(12, 5))
+    x = curve["x"].values
+    h = curve["high_mean"].values
+    lo = curve["low_mean"].values
+    h_ci_lo = curve["high_ci_lo"].values
+    h_ci_hi = curve["high_ci_hi"].values
+    l_ci_lo = curve["low_ci_lo"].values
+    l_ci_hi = curve["low_ci_hi"].values
+
+    ax.fill_between(x, h_ci_lo, h_ci_hi, color=COLOR_FAV, alpha=0.18,
+                    label="HIGH CI95% (bootstrap n=500)")
+    ax.plot(x, h, "-o", color=COLOR_FAV, linewidth=2.0, markersize=3,
+            label=f"HIGH (PUT_SKEW>=80 al entry)  N={int(curve['n_high'].iloc[0]):,}")
+
+    ax.fill_between(x, l_ci_lo, l_ci_hi, color=COLOR_ADV, alpha=0.18,
+                    label="LOW CI95% (bootstrap n=500)")
+    ax.plot(x, lo, "-o", color=COLOR_ADV, linewidth=2.0, markersize=3,
+            label=f"LOW (PUT_SKEW<=20 al entry)  N={int(curve['n_low'].iloc[0]):,}")
+
+    ax.axhline(0, color=DARK_MUTED, linewidth=0.8, linestyle="--", alpha=0.6)
+    # Mark the 2 horizons that the discrete chart uses
+    for ref in [20, 50]:
+        ax.axvline(ref, color=DARK_MUTED, linewidth=0.6, linestyle=":", alpha=0.5)
+        ax.text(ref + 0.3, ax.get_ylim()[1] * 0.95 if ax.get_ylim()[1] > 0 else 0,
+                f"d{ref:03d}", color=DARK_MUTED, fontsize=8, alpha=0.7)
+
+    ax.set_xlabel("Horizonte forward (dias desde entry)")
+    ax.set_ylabel("Mean PnL Batman LT (puntos)")
+    ax.set_title("Curva continua: PUT_SKEW HIGH (P80+) vs LOW (P20-) al entry  -  PnL Batman LT por horizonte d001-d050")
+    ax.set_xlim(1, 50)
+    ax.set_xticks([1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+    ax.legend(loc="upper left", framealpha=0.85, facecolor=DARK_PANEL, edgecolor=DARK_BORDER, fontsize=9)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -923,6 +1007,7 @@ def build_evidence_json(
         "regime_pnl": "evidence/put_skew_regime_pnl.png",
         "delta_curve": "evidence/put_skew_delta_curve.png",
         "window_forward": "evidence/put_skew_window_forward.png",
+        "continuous_curve": "evidence/put_skew_continuous_curve.png",
     }
 
     return {
@@ -992,6 +1077,10 @@ def main(push: bool) -> int:
         print("[INFO] computing window-forward in-script (Batman LT trades)")
         wf = compute_window_forward(ds)
         plot_window_forward(wf, EVIDENCE_DIR / "put_skew_window_forward.png")
+
+        print("[INFO] computing continuous curve (P80+ vs P20- at entry, x=1..50)")
+        curve = compute_continuous_curve(ds, n_boot=500)
+        plot_continuous_curve(curve, EVIDENCE_DIR / "put_skew_continuous_curve.png")
 
         print("[INFO] building HTML tables")
         tables = {

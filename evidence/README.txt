@@ -1,4 +1,4 @@
-Evidence regenerated: 2026-05-03 13:23 CEST
+Evidence regenerated: 2026-05-03 13:42 CEST
 Batman LT input: [MAIN RANKEO LT]_combined_BATMAN_mediana_w_stats_w_vix_OWN_ALLDAYS.csv
 Skew input: SKEW_PUT_ENRICHED.csv
 N trades: 46,118  N days: 1,613
