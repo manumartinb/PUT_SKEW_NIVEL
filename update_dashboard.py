@@ -34,7 +34,7 @@ import pandas as pd
 SOURCE_CSV = Path(
     r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Skew\SKEW_PUT_ENRICHED.csv"
 )
-DASHBOARD_DIR = Path(r"C:\Users\Administrator\Desktop\PUT_SKEW_NIVEL_DASHBOARD")
+DASHBOARD_DIR = Path(r"C:\Users\Administrator\Desktop\BULK OPTIONSTRAT\ESTRATEGIAS\Skew\dashboards\PUT_SKEW_NIVEL_DASHBOARD")
 DATA_JSON = DASHBOARD_DIR / "data.json"
 
 GH_REPO = "manumartinb/PUT_SKEW_NIVEL_BATMAN_LT"
@@ -52,7 +52,7 @@ SIDE = "PUT"
 PCT_COL = "skew_25d_vs50_pct_expanding"
 RAW_COL = "skew_25d_vs50"
 
-# Standard bands (Allantis/Batman convention).
+# Standard bands (Batman LT convention).
 # IMPORTANT: BWB usa banda invertida. Esta info se documenta en index.html
 # (Seccion 1 Concepto + Seccion 8 Cross-strategy). Aqui solo publicamos el
 # regimen base; el frontend pinta zonas segun convencion estandar.
